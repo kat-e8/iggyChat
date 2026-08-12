@@ -1,0 +1,25 @@
+services:
+  gateway:
+    build:
+      context: ..
+      dockerfile: mcp-gateway/Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Bind address is a container-topology concern, not a secret -- set it
+      # here rather than in .env, so a host-testing .env (GATEWAY_HOST=127.0.0.1)
+      # can't silently make the container unreachable via its published port.
+      # `environment:` takes precedence over `env_file:` in compose.
+      - GATEWAY_HOST=0.0.0.0
+    volumes:
+      # Docker-outside-of-Docker: lets docker-mcp's `docker` CLI control the
+      # HOST's Docker daemon from inside this container. This is effectively
+      # root on the host -- anyone who can reach /docker on this gateway can
+      # create/mount arbitrary containers. The GATEWAY_API_KEY middleware is
+      # the only thing standing between the internet and that, so treat the
+      # key like a root credential and keep this service off public networks
+      # unless you put a real auth layer in front of it.
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
