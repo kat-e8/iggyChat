@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from .auth import authenticate_user, create_access_token, create_user, decode_access_token
 from .claude_service import ChatSession
 from .config import settings
+from .gate import should_forward
 
 logger = logging.getLogger("chat_bridge")
 
@@ -70,6 +71,26 @@ async def login(body: AuthRequest, response: Response) -> TokenResponse:
     return _issue_token(body.email, response)
 
 
+_OUT_OF_SCOPE_REPLY = (
+    "I can only help with questions this system can actually answer through "
+    "its Ignition or Docker tools -- tags, alarms, tag history, gateway "
+    "connections/scripting, containers, compose stacks, and the like. That "
+    "doesn't look like one of those; try rephrasing or ask about your "
+    "Ignition/SCADA or Docker setup instead."
+)
+
+
+async def _send_out_of_scope_reply(websocket: WebSocket) -> None:
+    # Same wire shapes claude_service.serialize_message produces, so the
+    # frontend renders this exactly like a real assistant turn and clears
+    # awaitingReply via the ResultMessage frame -- no client-side changes
+    # needed to display it.
+    await websocket.send_json(
+        {"type": "assistant", "content": [{"type": "text", "text": _OUT_OF_SCOPE_REPLY}]}
+    )
+    await websocket.send_json({"type": "ResultMessage"})
+
+
 @app.websocket("/api/chat")
 async def chat(websocket: WebSocket) -> None:
     token = websocket.cookies.get(ACCESS_TOKEN_COOKIE)
@@ -85,6 +106,9 @@ async def chat(websocket: WebSocket) -> None:
                 raw = await websocket.receive_text()
                 payload = json.loads(raw)
                 prompt = payload.get("content", "")
+                if not await should_forward(prompt):
+                    await _send_out_of_scope_reply(websocket)
+                    continue
                 async for message in session.send(prompt):
                     await websocket.send_json(message)
     except WebSocketDisconnect:
