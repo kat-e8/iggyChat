@@ -1,0 +1,10 @@
+# Build context root is chat-bridge/ (see Dockerfile). uv sync rebuilds
+# .venv fresh inside the container, so the host's Windows .venv would just
+# bloat the build and doesn't run on Linux anyway.
+.venv
+__pycache__
+*.py[oc]
+.pytest_cache
+.git
+.env
+*.log

@@ -1,0 +1,32 @@
+# Runs the Chat Bridge on its own, built from ./Dockerfile in this directory.
+#
+# This is NOT the full-stack deployment -- for that (Chat Bridge + MCP
+# Gateway composed together, with only the Bridge's port published), see
+# ../backend/mcp-gateway/docker-compose.yml instead. Use *this* file when you
+# want just the Bridge, e.g. pointed at a Gateway that's already running
+# elsewhere (on the host, or on another machine).
+#
+#   docker compose up --build
+
+services:
+  chat-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    environment:
+      # Bind address is a container-topology concern, not a secret -- set it
+      # here rather than relying on .env, so a host-testing .env
+      # (CHAT_BRIDGE_HOST=127.0.0.1, the .env.example default) can't
+      # silently make the container unreachable via its published port.
+      # `environment:` takes precedence over `env_file:` in compose.
+      - CHAT_BRIDGE_HOST=0.0.0.0
+      # claude-agent-sdk reads this directly from the process environment,
+      # not from .env (see .env.example). Passed through from the shell
+      # that runs `docker compose up`; unset if using a logged-in `claude`
+      # CLI baked into the image instead.
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    restart: unless-stopped
