@@ -1,8 +1,8 @@
-# Build context must be the `backend/` directory (the parent of mcp-gateway/,
-# docker-mcp/, and ignition/), because gateway's editable dependencies point
-# at its sibling repos via relative paths. Build from backend/:
-#   docker build -f mcp-gateway/Dockerfile -t mcp-gateway .
-# (docker-compose.yml in this directory sets `context: ..` for you.)
+# Build context must be the repo root (the parent of gateway/, docker-mcp/,
+# and ignition-mcp/), because gateway's editable dependencies point at its
+# sibling directories via relative paths. Build from the repo root:
+#   docker build -f gateway/Dockerfile -t gateway .
+# (docker-compose.yml at the repo root sets `context: .` for you.)
 
 FROM python:3.12-slim
 
@@ -26,11 +26,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=ghcr.io/astral-sh/uv:0.7 /uv /uvx /usr/local/bin/
 
 WORKDIR /app
-COPY docker-mcp/docker-mcp ./docker-mcp/docker-mcp
-COPY ignition/ignition-mcp ./ignition/ignition-mcp
-COPY mcp-gateway ./mcp-gateway
+COPY docker-mcp ./docker-mcp
+COPY ignition-mcp ./ignition-mcp
+COPY gateway ./gateway
 
-WORKDIR /app/mcp-gateway
+WORKDIR /app/gateway
 RUN uv sync --locked --no-dev
 
 EXPOSE 8000

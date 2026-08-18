@@ -1,19 +1,32 @@
+# Explicit project name so container/network/volume names are predictable
+# regardless of which directory this is checked out into or run from.
+name: iggychat
+
 services:
   gateway:
     build:
-      context: ..
-      dockerfile: mcp-gateway/Dockerfile
+      context: .
+      dockerfile: gateway/Dockerfile
+    # Pre-built, immutable, git-sha-tagged image pushed by the build workflow.
+    # `docker compose build` (local dev) still works via the `build:` block
+    # above; `docker compose pull` (deploy workflow) uses this instead and
+    # never builds on the deploy host. Defaults to `:dev` for local builds
+    # where TAG isn't set.
+    image: clubuntu.dala-cirius.ts.net:5000/iggychat-gateway:${TAG:-dev}
     # No published port -- only chat-bridge (below) is reachable from outside
     # this compose network. The Gateway is internal-only, per the BFF
-    # architecture (see ../../chat-bridge/ARCHITECTURE.md): the browser only
+    # architecture (see chat-bridge/ARCHITECTURE.md): the browser only
     # ever talks to the Chat Bridge, which holds the Gateway's X-API-Key
     # server-side and reaches it at http://gateway:8000 via compose's own
     # service-name DNS.
     expose:
       - "8000"
     env_file:
-      - .env
-    container_name: mcp-gateway
+      - gateway/.env
+    # "mcp-gateway" and "gateway" are already in use by unrelated services on
+    # the shared clubuntu host (a different MCP stack) -- iggychat- prefix
+    # avoids colliding with either.
+    container_name: iggychat-gateway
     environment:
       # Bind address is a container-topology concern, not a secret -- set it
       # here rather than in .env, so a host-testing .env (GATEWAY_HOST=127.0.0.1)
@@ -32,18 +45,18 @@ services:
 
   chat-bridge:
     build:
-      # Spans chat-bridge/ (sibling to backend/), not this repo -- see
-      # ../../chat-bridge/Dockerfile for how to also bake the built Angular
+      # See chat-bridge/Dockerfile for how to also bake the built Angular
       # app in before running `docker compose up`.
-      context: ../../chat-bridge
+      context: ./chat-bridge
       dockerfile: Dockerfile
+    image: clubuntu.dala-cirius.ts.net:5000/iggychat-chat-bridge:${TAG:-dev}
     # The only service this compose file publishes to the host -- the single
     # public entry point the browser talks to.
     ports:
       - "8001:8001"
     env_file:
-      - ../../chat-bridge/.env
-    container_name: chat-bridge
+      - ./chat-bridge/.env
+    container_name: iggychat-chat-bridge
     environment:
       - CHAT_BRIDGE_HOST=0.0.0.0
       # Container-topology concern, same reasoning as GATEWAY_HOST above:
@@ -60,20 +73,22 @@ services:
 
   frontend:
     build:
-      # Spans frontend/ (sibling to backend/), not this repo -- see
-      # ../../frontend/Dockerfile. Builds the Angular app and serves it via
-      # nginx, which also reverse-proxies /api/* to chat-bridge on the shared
-      # compose network (see ../../frontend/nginx.conf).
-      context: ../../frontend
+      # Builds the Angular app and serves it via nginx, which also
+      # reverse-proxies /api/* to chat-bridge on the shared compose network
+      # (see frontend/nginx.conf).
+      context: ./frontend
       dockerfile: Dockerfile
+    image: clubuntu.dala-cirius.ts.net:5000/iggychat-frontend:${TAG:-dev}
     # Second host-published service, alongside chat-bridge -- the browser
     # talks to this nginx for the app shell and static assets; nginx forwards
     # /api/* to chat-bridge:8001 via compose service-name DNS.
+    # Port 8080 is already taken by an unrelated service on the shared
+    # clubuntu host (filebrowser) -- published on 8090 instead.
     ports:
-      - "8080:80"
-    container_name: mcp-frontend
+      - "8090:80"
+    container_name: iggychat-frontend
     volumes:
-      - ../../frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - nginx-logs:/var/log/nginx
     depends_on:
       - chat-bridge
