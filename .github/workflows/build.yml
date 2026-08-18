@@ -1,0 +1,46 @@
+name: Build
+
+# Build only. Deploy is a separate workflow (deploy.yml) triggered by tag
+# pushes, so every push to main produces an immutable, registry-pushed
+# image without ever touching what's actually running on clubuntu.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # Labels the iggyChat self-hosted runner on clubuntu is registered
+    # with (see Deployment/Phase3_Self_Hosted_Runner.pdf).
+    runs-on: [self-hosted, iggychat]
+    strategy:
+      matrix:
+        include:
+          - service: gateway
+            context: .
+            dockerfile: gateway/Dockerfile
+          - service: chat-bridge
+            context: ./chat-bridge
+            dockerfile: chat-bridge/Dockerfile
+          - service: frontend
+            context: ./frontend
+            dockerfile: frontend/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build ${{ matrix.service }}
+        run: |
+          docker build \
+            -f ${{ matrix.dockerfile }} \
+            -t clubuntu.dala-cirius.ts.net:5000/iggychat-${{ matrix.service }}:${{ github.sha }} \
+            -t clubuntu.dala-cirius.ts.net:5000/iggychat-${{ matrix.service }}:main \
+            ${{ matrix.context }}
+
+      - name: Push ${{ matrix.service }}
+        # Registry is unauthenticated (tailnet-only) -- no docker login step.
+        run: |
+          docker push clubuntu.dala-cirius.ts.net:5000/iggychat-${{ matrix.service }}:${{ github.sha }}
+          docker push clubuntu.dala-cirius.ts.net:5000/iggychat-${{ matrix.service }}:main

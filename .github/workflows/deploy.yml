@@ -1,0 +1,50 @@
+name: Deploy
+
+# Deploy only, and only on a tag push -- build.yml is what actually builds
+# and pushes images (on every push to main). A tag marks "deploy the
+# already-built image for this commit"; nothing is rebuilt here.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Commit SHA to deploy (defaults to the tagged commit). Use this for a rollback.'
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, iggychat]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve target SHA
+        id: resolve
+        run: |
+          SHA="${{ github.event.inputs.sha }}"
+          if [ -z "$SHA" ]; then SHA="${{ github.sha }}"; fi
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Stage secrets
+        # Real .env files live outside the repo/workspace on clubuntu --
+        # never committed, never a GitHub secret. See Phase 5 report.
+        run: |
+          cp ~/.config/iggychat/gateway.env gateway/.env
+          cp ~/.config/iggychat/chat-bridge.env chat-bridge/.env
+
+      - name: Pull pinned images
+        run: TAG="${{ steps.resolve.outputs.sha }}" docker compose pull
+
+      - name: Deploy
+        run: TAG="${{ steps.resolve.outputs.sha }}" docker compose up -d --remove-orphans
+
+      - name: Smoke test
+        run: |
+          sleep 5
+          curl -sf http://localhost:8090/ >/dev/null
+          curl -sf http://localhost:8001/docs >/dev/null
+          echo "Smoke test passed for SHA ${{ steps.resolve.outputs.sha }}"
