@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -29,6 +29,17 @@ class Settings(BaseSettings):
     max_session_budget_usd: float | None = Field(
         default=None, validation_alias="CHAT_BRIDGE_MAX_SESSION_BUDGET_USD"
     )
+
+    @field_validator("max_daily_budget_usd", "max_session_budget_usd", mode="before")
+    @classmethod
+    def _blank_env_means_unset(cls, v: object) -> object:
+        # `KEY=` in an env_file sets the process env var to an empty string,
+        # not "absent" -- without this, pydantic tries (and fails) to parse
+        # "" as a float instead of falling back to the None default. Broke
+        # chat-bridge on first deploy: crashed at startup with a
+        # ValidationError, every documented "leave blank to disable" .env
+        # value triggered it.
+        return None if v == "" else v
 
     jwt_secret: str
     jwt_expire_minutes: int = Field(default=1440, validation_alias="JWT_EXPIRE_MINUTES")
