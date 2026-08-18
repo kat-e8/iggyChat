@@ -5,6 +5,7 @@ backend/mcp-gateway/src/gateway/app.py), gated by the X-API-Key header held
 here rather than passed to the browser.
 """
 
+import logging
 from collections.abc import AsyncIterator
 from dataclasses import asdict, is_dataclass
 from typing import Any
@@ -13,6 +14,7 @@ from claude_agent_sdk import (
     AssistantMessage,
     ClaudeAgentOptions,
     ClaudeSDKClient,
+    ResultMessage,
     TextBlock,
     ThinkingBlock,
     ToolResultBlock,
@@ -21,6 +23,8 @@ from claude_agent_sdk import (
 )
 
 from .config import settings
+
+logger = logging.getLogger("chat_bridge.claude")
 
 
 def _mcp_servers() -> dict[str, dict[str, Any]]:
@@ -108,4 +112,30 @@ class ChatSession:
     async def send(self, prompt: str) -> AsyncIterator[dict[str, Any]]:
         await self._client.query(prompt)
         async for message in self._client.receive_response():
+            if isinstance(message, ResultMessage):
+                _log_turn_cost(message)
             yield serialize_message(message)
+
+
+def _log_turn_cost(message: ResultMessage) -> None:
+    """Surfaces per-turn model/cache/cost data the SDK already computes.
+
+    Added to diagnose real-world API-key billing burning through credit much
+    faster than expected -- canonicalModel answers "which model actually
+    ran" and cacheReadInputTokens vs. cacheCreationInputTokens/inputTokens
+    answers "is prompt caching hitting", per turn, without guessing.
+    """
+    if message.total_cost_usd is not None:
+        logger.info("turn total: $%.4f session=%s", message.total_cost_usd, message.session_id)
+    for model_key, usage in (message.model_usage or {}).items():
+        logger.info(
+            "  model=%s canonical=%s provider=%s in=%d cache_read=%d cache_write=%d out=%d cost=$%.4f",
+            model_key,
+            usage.get("canonicalModel", "?"),
+            usage.get("provider", "?"),
+            usage.get("inputTokens", 0),
+            usage.get("cacheReadInputTokens", 0),
+            usage.get("cacheCreationInputTokens", 0),
+            usage.get("outputTokens", 0),
+            usage.get("costUSD", 0.0),
+        )
