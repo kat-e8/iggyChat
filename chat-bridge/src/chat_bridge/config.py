@@ -7,8 +7,16 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    gateway_url: str = "http://127.0.0.1:8000"
-    gateway_api_key: str
+    # iggyChat is an Ignition frontend -- it talks to the pre-existing,
+    # shared MCP gateway that already serves /ignition/mcp for other tools
+    # on this host (Claude Code's own "ignition-gw" MCP server config points
+    # at the same URL), rather than running a duplicate gateway of its own.
+    # See Deployment/Phase10_*.pdf.
+    ignition_mcp_url: str = Field(
+        default="http://clubuntu.dala-cirius.ts.net:8000/ignition/mcp",
+        validation_alias="IGNITION_MCP_URL",
+    )
+    ignition_mcp_api_key: str = Field(validation_alias="IGNITION_MCP_API_KEY")
 
     host: str = Field(default="127.0.0.1", validation_alias="CHAT_BRIDGE_HOST")
     port: int = Field(default=8001, validation_alias="CHAT_BRIDGE_PORT")

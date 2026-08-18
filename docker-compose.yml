@@ -3,46 +3,6 @@
 name: iggychat
 
 services:
-  gateway:
-    build:
-      context: .
-      dockerfile: gateway/Dockerfile
-    # Pre-built, immutable, git-sha-tagged image pushed by the build workflow.
-    # `docker compose build` (local dev) still works via the `build:` block
-    # above; `docker compose pull` (deploy workflow) uses this instead and
-    # never builds on the deploy host. Defaults to `:dev` for local builds
-    # where TAG isn't set.
-    image: clubuntu.dala-cirius.ts.net:5000/iggychat-gateway:${TAG:-dev}
-    # No published port -- only chat-bridge (below) is reachable from outside
-    # this compose network. The Gateway is internal-only, per the BFF
-    # architecture (see chat-bridge/ARCHITECTURE.md): the browser only
-    # ever talks to the Chat Bridge, which holds the Gateway's X-API-Key
-    # server-side and reaches it at http://gateway:8000 via compose's own
-    # service-name DNS.
-    expose:
-      - "8000"
-    env_file:
-      - gateway/.env
-    # "mcp-gateway" and "gateway" are already in use by unrelated services on
-    # the shared clubuntu host (a different MCP stack) -- iggychat- prefix
-    # avoids colliding with either.
-    container_name: iggychat-gateway
-    environment:
-      # Bind address is a container-topology concern, not a secret -- set it
-      # here rather than in .env, so a host-testing .env (GATEWAY_HOST=127.0.0.1)
-      # can't silently make the container unreachable on the compose network.
-      # `environment:` takes precedence over `env_file:` in compose.
-      - GATEWAY_HOST=0.0.0.0
-    volumes:
-      # Docker-outside-of-Docker: lets docker-mcp's `docker` CLI control the
-      # HOST's Docker daemon from inside this container. This is effectively
-      # root on the host -- anyone who can reach /docker on this gateway can
-      # create/mount arbitrary containers. The GATEWAY_API_KEY middleware is
-      # the only thing standing between the chat-bridge network and that, so
-      # treat the key like a root credential.
-      - /var/run/docker.sock:/var/run/docker.sock
-   # restart: unless-stopped
-
   chat-bridge:
     build:
       # See chat-bridge/Dockerfile for how to also bake the built Angular
@@ -59,9 +19,9 @@ services:
     container_name: iggychat-chat-bridge
     environment:
       - CHAT_BRIDGE_HOST=0.0.0.0
-      # Container-topology concern, same reasoning as GATEWAY_HOST above:
-      # reach the Gateway by its compose service name, not localhost/127.0.0.1.
-      - GATEWAY_URL=http://gateway:8000
+      # Not this project's own gateway -- a shared MCP gateway already
+      # running on this host for other tools. See Deployment/Phase10_*.pdf.
+      - IGNITION_MCP_URL=http://clubuntu.dala-cirius.ts.net:8000/ignition/mcp
       # SQLite usage-tracking DB lives on the named volume below, not the
       # container's own writable layer -- must survive `docker compose up`
       # recreating the container on every deploy, since its whole purpose is
@@ -73,8 +33,6 @@ services:
       - CHAT_BRIDGE_USERS_DB_PATH=/data/users.db
     volumes:
       - chat-bridge-data:/data
-    depends_on:
-      - gateway
  #   restart: unless-stopped
 
   frontend:

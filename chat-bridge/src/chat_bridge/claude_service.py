@@ -1,8 +1,12 @@
-"""Wires the Claude Agent SDK to the MCP Gateway's /docker and /ignition sub-apps.
+"""Wires the Claude Agent SDK to the shared Ignition MCP gateway.
 
-Each server is mounted by the Gateway as streamable-HTTP at <mount>/mcp (see
-backend/mcp-gateway/src/gateway/app.py), gated by the X-API-Key header held
-here rather than passed to the browser.
+iggyChat is an Ignition-specific frontend -- it only ever needs the one
+ignition-mcp tool server, and (see Deployment/Phase10_*.pdf) that server
+already runs elsewhere on this host, shared with other tools (e.g. Claude
+Code's own "ignition-gw" MCP config points at this exact URL). There is no
+gateway belonging to this project anymore -- streamable-HTTP straight to
+the shared server, gated by the X-API-Key header held here rather than
+passed to the browser.
 """
 
 import asyncio
@@ -30,17 +34,11 @@ logger = logging.getLogger("chat_bridge.claude")
 
 
 def _mcp_servers() -> dict[str, dict[str, Any]]:
-    headers = {"X-API-Key": settings.gateway_api_key}
     return {
-        "docker": {
-            "type": "http",
-            "url": f"{settings.gateway_url}/docker/mcp",
-            "headers": headers,
-        },
         "ignition": {
             "type": "http",
-            "url": f"{settings.gateway_url}/ignition/mcp",
-            "headers": headers,
+            "url": settings.ignition_mcp_url,
+            "headers": {"X-API-Key": settings.ignition_mcp_api_key},
         },
     }
 
@@ -60,11 +58,11 @@ def build_options() -> ClaudeAgentOptions:
         # might otherwise pick up -- only the two servers below are ever
         # available.
         strict_mcp_config=True,
-        # Auto-approve both tool servers -- there's no interactive terminal on
-        # the other end of this connection to answer a permission prompt.
-        # Per-tool confirmation UX for high-impact actions is an open
-        # question from mcp_frontend_v3.pdf, not yet resolved.
-        allowed_tools=["mcp__docker__*", "mcp__ignition__*"],
+        # Auto-approve -- there's no interactive terminal on the other end of
+        # this connection to answer a permission prompt. Per-tool
+        # confirmation UX for high-impact actions is an open question from
+        # mcp_frontend_v3.pdf, not yet resolved.
+        allowed_tools=["mcp__ignition__*"],
         model=settings.claude_model,
         # Secondary safety net beneath the cumulative daily cap in app.py --
         # this one's per-session (per WebSocket connection) and enforced by
