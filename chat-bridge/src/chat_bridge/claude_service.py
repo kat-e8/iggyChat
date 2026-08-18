@@ -5,6 +5,7 @@ backend/mcp-gateway/src/gateway/app.py), gated by the X-API-Key header held
 here rather than passed to the browser.
 """
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from dataclasses import asdict, is_dataclass
@@ -22,6 +23,7 @@ from claude_agent_sdk import (
     UserMessage,
 )
 
+from . import usage_store
 from .config import settings
 
 logger = logging.getLogger("chat_bridge.claude")
@@ -64,6 +66,11 @@ def build_options() -> ClaudeAgentOptions:
         # question from mcp_frontend_v3.pdf, not yet resolved.
         allowed_tools=["mcp__docker__*", "mcp__ignition__*"],
         model=settings.claude_model,
+        # Secondary safety net beneath the cumulative daily cap in app.py --
+        # this one's per-session (per WebSocket connection) and enforced by
+        # the SDK itself, so a single runaway conversation can't blow past
+        # it even if the daily total is still under budget. None disables it.
+        max_budget_usd=settings.max_session_budget_usd,
     )
 
 
@@ -113,17 +120,18 @@ class ChatSession:
         await self._client.query(prompt)
         async for message in self._client.receive_response():
             if isinstance(message, ResultMessage):
-                _log_turn_cost(message)
+                await _record_turn_cost(message)
             yield serialize_message(message)
 
 
-def _log_turn_cost(message: ResultMessage) -> None:
-    """Surfaces per-turn model/cache/cost data the SDK already computes.
+async def _record_turn_cost(message: ResultMessage) -> None:
+    """Logs and persists per-turn model/cache/cost data the SDK already computes.
 
     Added to diagnose real-world API-key billing burning through credit much
     faster than expected -- canonicalModel answers "which model actually
     ran" and cacheReadInputTokens vs. cacheCreationInputTokens/inputTokens
-    answers "is prompt caching hitting", per turn, without guessing.
+    answers "is prompt caching hitting", per turn, without guessing. Also
+    feeds usage_store, which backs the cumulative daily budget cap.
     """
     if message.total_cost_usd is not None:
         logger.info("turn total: $%.4f session=%s", message.total_cost_usd, message.session_id)
@@ -139,3 +147,6 @@ def _log_turn_cost(message: ResultMessage) -> None:
             usage.get("outputTokens", 0),
             usage.get("costUSD", 0.0),
         )
+        # sqlite3 is blocking -- keep it off the event loop so one client's
+        # write doesn't stall every other connected WebSocket.
+        await asyncio.to_thread(usage_store.record_usage, message.session_id, model_key, usage)

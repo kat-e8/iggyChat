@@ -67,6 +67,13 @@ services:
       # `docker compose up`; unset if using a logged-in `claude` CLI baked
       # into the image instead.
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # SQLite usage-tracking DB lives on the named volume below, not the
+      # container's own writable layer -- must survive `docker compose up`
+      # recreating the container on every deploy, since its whole purpose is
+      # tracking cumulative spend over days/weeks.
+      - CHAT_BRIDGE_USAGE_DB_PATH=/data/usage.db
+    volumes:
+      - chat-bridge-data:/data
     depends_on:
       - gateway
  #   restart: unless-stopped
@@ -96,3 +103,4 @@ services:
 
 volumes:
   nginx-logs:
+  chat-bridge-data:

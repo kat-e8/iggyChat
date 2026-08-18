@@ -15,6 +15,21 @@ class Settings(BaseSettings):
 
     claude_model: str | None = Field(default=None, validation_alias="CLAUDE_MODEL")
 
+    # Cumulative spend tracking (usage_store.py) -- persisted on the
+    # chat-bridge-data volume (see docker-compose.yml) so it survives
+    # container recreation on every deploy, not just one process's lifetime.
+    usage_db_path: Path = Field(
+        default=Path("chat_bridge_usage.db"), validation_alias="CHAT_BRIDGE_USAGE_DB_PATH"
+    )
+    # Both None (disabled) by default -- these are real-money caps and the
+    # right number depends on the user's own budget, not a guess made here.
+    max_daily_budget_usd: float | None = Field(
+        default=None, validation_alias="CHAT_BRIDGE_MAX_DAILY_BUDGET_USD"
+    )
+    max_session_budget_usd: float | None = Field(
+        default=None, validation_alias="CHAT_BRIDGE_MAX_SESSION_BUDGET_USD"
+    )
+
     jwt_secret: str
     jwt_expire_minutes: int = Field(default=1440, validation_alias="JWT_EXPIRE_MINUTES")
     # Off by default for local http dev; set true once served over https.

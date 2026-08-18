@@ -6,14 +6,17 @@ browser attaches it automatically to the WebSocket upgrade request, so the
 Angular client never has to manage the token itself.
 """
 
+import asyncio
 import json
 import logging
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from . import usage_store
 from .auth import authenticate_user, create_access_token, create_user, decode_access_token
 from .claude_service import ChatSession
 from .config import settings
@@ -54,6 +57,20 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+def _require_auth(request: Request) -> str:
+    token = request.cookies.get(ACCESS_TOKEN_COOKIE)
+    email = decode_access_token(token) if token else None
+    if email is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return email
+
+
+@app.get("/api/usage")
+async def usage(request: Request) -> dict[str, Any]:
+    _require_auth(request)
+    return await asyncio.to_thread(usage_store.summary)
+
+
 @app.post("/api/auth/signup", status_code=201)
 async def signup(body: AuthRequest, response: Response) -> TokenResponse:
     try:
@@ -83,6 +100,22 @@ async def chat(websocket: WebSocket) -> None:
         async with ChatSession() as session:
             while True:
                 raw = await websocket.receive_text()
+                # Checked per message, not once at connect -- a long-lived
+                # WebSocket session must not be able to keep sending once
+                # today's cumulative spend (across every session) crosses
+                # the configured cap.
+                if await asyncio.to_thread(usage_store.daily_budget_exceeded):
+                    await websocket.send_json(
+                        {
+                            "type": "error",
+                            "error": "daily_budget_exceeded",
+                            "message": (
+                                "Daily Claude usage budget has been reached. "
+                                "Try again tomorrow, or raise CHAT_BRIDGE_MAX_DAILY_BUDGET_USD."
+                            ),
+                        }
+                    )
+                    continue
                 payload = json.loads(raw)
                 prompt = payload.get("content", "")
                 async for message in session.send(prompt):
