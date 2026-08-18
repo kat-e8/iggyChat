@@ -15,7 +15,13 @@ COPY --from=ghcr.io/astral-sh/uv:0.7 /uv /uvx /usr/local/bin/
 
 WORKDIR /app
 COPY . .
-RUN uv sync --locked --no-dev
+# Cache mount persists uv's downloaded-wheel cache across builds on the same
+# host -- without it, every build re-downloads every dependency from
+# scratch (including a ~90MB claude-agent-sdk wheel), which stalled badly on
+# a slow network patch during Phase 4's first real CI run (see
+# Deployment/Phase4_Build_Deploy_Workflows.pdf).
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev
 
 EXPOSE 8001
 ENV CHAT_BRIDGE_HOST=0.0.0.0
