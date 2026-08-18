@@ -1,0 +1,16 @@
+This is the starting-point scaffold (branch "1-start") for Angular AI In Depth, an Angular University course on building a full-stack AI chatbot with Claude Code.
+
+What it is: A signals-based, zoneless Angular 22 frontend + Node/Express backend that will call the OpenAI API to power a chatbot, with email/password auth (no real database - in-memory mock data).
+
+Current state (bare skeleton):
+- src/app/ - just the root App component, an empty routes file ('' -> /home redirect, but no home route defined yet), and global styles. No feature components, services, or models exist yet.
+- server/ - contains only a CLAUDE.md with backend rules; no actual Express server code has been written yet.
+- angular.json shows as modified in git status (uncommitted).
+- Recent commits show the repo was just upgraded to Angular 22, plus an MCP server fix for the angular-cli tool integration.
+
+Key ground rules baked into the CLAUDE.md files (these constrain how the app is built going forward):
+- Frontend: Signal Forms only (no reactive/template-driven forms), Promises/async-await instead of RxJs, external template/style files only (no inline), all API calls prefixed /api, OnPush + zoneless, input()/output()/computed() signal patterns, no ngClass/ngStyle.
+- Backend: Express on localhost:9000, one route per file under server/routes, plain HTTP calls to OpenAI (no SDK wrapper), pino for logging, dotenv for env vars, argon2-style hashed/salted auth, seeded with a mock user test@angular-university.io / Angular123.
+- General: model types in their own files, no single-letter vars, no _ prefixes, no inferred return types written explicitly.
+
+Since this is the "1-start" branch, essentially everything (backend server, auth, chat UI) is still to be built.

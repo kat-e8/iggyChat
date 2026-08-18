@@ -1,0 +1,27 @@
+// Shared design tokens. Import via `@use 'theme';` (includePaths: src/styles,
+// configured in angular.json) so every component draws from one palette.
+
+$color-page-bg: #241344;
+$color-card-bg: #170b2e;
+$color-input-bg: #2c1c4f;
+$color-input-bg-focus: #382465;
+$color-border: rgba(255, 255, 255, 0.08);
+
+$color-primary: #5b52f0;
+$color-primary-hover: #6c63ff;
+
+// Chat's send button / focus accent -- distinct from the auth screens'
+// indigo primary, matching ui-screenshots/chat-*.png.
+$color-accent: #ec1264;
+$color-accent-hover: #f4317c;
+
+$color-text: #f5f3fa;
+$color-text-muted: #9089ab;
+$color-link: #7c86f5;
+$color-error: #f87171;
+
+$font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+$radius-sm: 6px;
+$radius-md: 10px;
+$radius-lg: 16px;

@@ -1,0 +1,38 @@
+<auth-shell heading="Welcome back,">
+  <form [formRoot]="credentialsForm" (submit)="onSubmit()">
+    <div class="field">
+      <label class="visually-hidden" for="email">Email</label>
+      <input
+        id="email"
+        type="email"
+        placeholder="Email"
+        autocomplete="email"
+        [formField]="credentialsForm.email"
+        [class.invalid]="emailInvalid()"
+        [attr.aria-invalid]="emailInvalid()"
+      />
+      @if (emailInvalid()) {
+        <p class="field-error" role="alert">{{ credentialsForm.email().errors()[0].message }}</p>
+      }
+    </div>
+
+    <div class="field">
+      <password-field
+        fieldId="password"
+        label="Password"
+        placeholder="Password"
+        autocomplete="current-password"
+        [formField]="credentialsForm.password"
+      />
+      @if (credentialsForm.password().touched() && credentialsForm.password().errors().length > 0) {
+        <p class="field-error" role="alert">{{ credentialsForm.password().errors()[0].message }}</p>
+      }
+    </div>
+
+    <button type="submit" class="submit-button" [disabled]="credentialsForm().submitting()">
+      {{ credentialsForm().submitting() ? 'Signing in…' : 'Login' }}
+    </button>
+  </form>
+
+  <span footer>Don't have an account? <a routerLink="/sign-up">Sign up</a> here</span>
+</auth-shell>

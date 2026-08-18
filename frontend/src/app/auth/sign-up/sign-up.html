@@ -1,0 +1,51 @@
+<auth-shell heading="Sign Up">
+  <form [formRoot]="credentialsForm" (submit)="onSubmit()">
+    <div class="field">
+      <label class="visually-hidden" for="email">Email</label>
+      <input
+        id="email"
+        type="email"
+        placeholder="Email"
+        autocomplete="email"
+        [formField]="credentialsForm.email"
+        [class.invalid]="emailInvalid()"
+        [attr.aria-invalid]="emailInvalid()"
+      />
+      @if (emailInvalid()) {
+        <p class="field-error" role="alert">{{ credentialsForm.email().errors()[0].message }}</p>
+      }
+    </div>
+
+    <div class="field">
+      <password-field
+        fieldId="password"
+        label="Password"
+        placeholder="Password"
+        autocomplete="new-password"
+        [formField]="credentialsForm.password"
+      />
+      @if (credentialsForm.password().touched() && credentialsForm.password().errors().length > 0) {
+        <p class="field-error" role="alert">{{ credentialsForm.password().errors()[0].message }}</p>
+      }
+    </div>
+
+    <div class="field">
+      <password-field
+        fieldId="confirm-password"
+        label="Confirm Password"
+        placeholder="Confirm Password"
+        autocomplete="new-password"
+        [formField]="credentialsForm.confirmPassword"
+      />
+      @if (credentialsForm.confirmPassword().touched() && credentialsForm.confirmPassword().errors().length > 0) {
+        <p class="field-error" role="alert">{{ credentialsForm.confirmPassword().errors()[0].message }}</p>
+      }
+    </div>
+
+    <button type="submit" class="submit-button" [disabled]="credentialsForm().submitting()">
+      {{ credentialsForm().submitting() ? 'Creating account…' : 'Create Account' }}
+    </button>
+  </form>
+
+  <span footer>Already have an account? <a routerLink="/sign-in">Sign in</a> here</span>
+</auth-shell>

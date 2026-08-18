@@ -1,0 +1,44 @@
+<div class="messages" role="log" aria-label="Chat messages">
+  @for (message of renderableMessages(); track message.id; let last = $last) {
+    <div
+      class="message"
+      [class.message-user]="message.role === 'user'"
+      [class.message-assistant]="message.role === 'assistant'"
+      [attr.aria-live]="last ? 'polite' : null"
+    >
+      @if (message.role === 'assistant') {
+        <img
+          ngSrc="images/ignitionchat-mark.png"
+          width="500"
+          height="500"
+          alt=""
+          class="avatar avatar-assistant"
+        />
+      }
+
+      <div class="bubble">
+        @if (message.text) {
+          <p class="bubble-text">{{ message.text }}</p>
+        }
+        @for (toolCall of message.toolCalls; track toolCall.id) {
+          <p class="tool-call" [class.tool-call-active]="toolCall.status === 'in-progress'">
+            @if (toolCall.status === 'in-progress') {
+              Calling <code>{{ toolCall.name }}</code>…
+            } @else {
+              <code>{{ toolCall.name }}</code> completed
+            }
+          </p>
+        }
+      </div>
+
+      @if (message.role === 'user') {
+        <span class="avatar avatar-user" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke-linecap="round" />
+          </svg>
+        </span>
+      }
+    </div>
+  }
+</div>

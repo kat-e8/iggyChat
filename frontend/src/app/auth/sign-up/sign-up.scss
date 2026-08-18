@@ -1,0 +1,21 @@
+@use 'form-controls';
+
+form {
+  width: 100%;
+}
+
+.field {
+  @include form-controls.field;
+}
+
+input {
+  @include form-controls.text-input;
+}
+
+.field-error {
+  @include form-controls.field-error;
+}
+
+.submit-button {
+  @include form-controls.submit-button;
+}

@@ -1,0 +1,21 @@
+@use 'theme';
+
+.status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.5rem 0;
+  color: theme.$color-text-muted;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.status-text code {
+  font-family: 'Consolas', 'Cascadia Mono', monospace;
+  font-size: 0.8125rem;
+}
+
+.status-timer strong {
+  color: theme.$color-link;
+}

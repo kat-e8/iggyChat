@@ -1,0 +1,31 @@
+<div class="auth-page">
+  <div class="brand-pane">
+    <img
+      ngSrc="images/ignitionchat-logo.png"
+      width="500"
+      height="500"
+      priority
+      alt="IgnitionChat -- AI interface to your SCADA platform"
+      class="brand-logo"
+    />
+  </div>
+
+  <div class="auth-card">
+    <img
+      ngSrc="images/ignitionchat-mark.png"
+      width="500"
+      height="500"
+      priority
+      alt="IgnitionChat"
+      class="university-logo"
+    />
+
+    <h2>{{ heading() }}</h2>
+
+    <ng-content />
+
+    <p class="auth-card-footer">
+      <ng-content select="[footer]" />
+    </p>
+  </div>
+</div>
