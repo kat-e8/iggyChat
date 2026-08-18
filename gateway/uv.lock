@@ -313,7 +313,7 @@ wheels = [
 [[package]]
 name = "docker-mcp"
 version = "0.1.0"
-source = { editable = "../docker-mcp/docker-mcp" }
+source = { editable = "../docker-mcp" }
 dependencies = [
     { name = "httpx" },
     { name = "mcp" },
@@ -461,9 +461,9 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "docker-mcp", editable = "../docker-mcp/docker-mcp" },
+    { name = "docker-mcp", editable = "../docker-mcp" },
     { name = "fastapi", specifier = ">=0.141.1" },
-    { name = "ignition-mcp", editable = "../ignition/ignition-mcp" },
+    { name = "ignition-mcp", editable = "../ignition-mcp" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.1" },
 ]
 
@@ -570,7 +570,7 @@ wheels = [
 [[package]]
 name = "ignition-mcp"
 version = "0.1.0"
-source = { editable = "../ignition/ignition-mcp" }
+source = { editable = "../ignition-mcp" }
 dependencies = [
     { name = "fastapi" },
     { name = "fastmcp" },
