@@ -43,8 +43,23 @@ jobs:
         run: TAG="${{ steps.resolve.outputs.sha }}" docker compose up -d --remove-orphans
 
       - name: Smoke test
+        # Retries for up to 60s instead of a single fixed sleep -- a fresh
+        # container (chat-bridge's FastAPI startup, frontend's own
+        # healthcheck) can take a few seconds longer than a flat sleep
+        # accounts for, which cost this step a false-negative failure on
+        # its first real run even though the deploy itself had succeeded.
         run: |
-          sleep 5
-          curl -sf http://localhost:8090/ >/dev/null
-          curl -sf http://localhost:8001/docs >/dev/null
+          for url in http://localhost:8090/ http://localhost:8001/docs; do
+            for i in $(seq 1 12); do
+              if curl -sf "$url" >/dev/null; then
+                echo "OK: $url"
+                break
+              fi
+              if [ "$i" -eq 12 ]; then
+                echo "FAILED: $url never came up"
+                exit 1
+              fi
+              sleep 5
+            done
+          done
           echo "Smoke test passed for SHA ${{ steps.resolve.outputs.sha }}"
