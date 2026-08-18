@@ -62,11 +62,6 @@ services:
       # Container-topology concern, same reasoning as GATEWAY_HOST above:
       # reach the Gateway by its compose service name, not localhost/127.0.0.1.
       - GATEWAY_URL=http://gateway:8000
-      # claude-agent-sdk reads this directly from the process environment,
-      # not from .env -- passed through from the shell that runs
-      # `docker compose up`; unset if using a logged-in `claude` CLI baked
-      # into the image instead.
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       # SQLite usage-tracking DB lives on the named volume below, not the
       # container's own writable layer -- must survive `docker compose up`
       # recreating the container on every deploy, since its whole purpose is
