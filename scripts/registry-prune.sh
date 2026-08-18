@@ -15,7 +15,7 @@
 set -euo pipefail
 
 REGISTRY=clubuntu.dala-cirius.ts.net:5000
-SERVICES=(gateway chat-bridge frontend)
+SERVICES=(chat-bridge frontend)
 KEEP_COMMITS=5
 REPO_CLONE=~/.config/iggychat/repo-history/iggyChat.git
 

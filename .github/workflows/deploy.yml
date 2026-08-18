@@ -32,8 +32,9 @@ jobs:
       - name: Stage secrets
         # Real .env files live outside the repo/workspace on clubuntu --
         # never committed, never a GitHub secret. See Phase 5 report.
+        # No gateway.env -- this project doesn't run its own gateway
+        # anymore (see Deployment/Phase10_*.pdf).
         run: |
-          cp ~/.config/iggychat/gateway.env gateway/.env
           cp ~/.config/iggychat/chat-bridge.env chat-bridge/.env
 
       - name: Pull pinned images

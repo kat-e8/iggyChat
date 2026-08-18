@@ -19,9 +19,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - service: gateway
-            context: .
-            dockerfile: gateway/Dockerfile
           - service: chat-bridge
             context: ./chat-bridge
             dockerfile: chat-bridge/Dockerfile

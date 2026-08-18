@@ -1,13 +1,13 @@
 # Chat Bridge — Architecture
 
-This repo (`chat-bridge`) is a standalone backend-for-frontend (BFF): Python FastAPI + Claude Agent SDK, sitting between the Angular app (`../frontend`) and the existing MCP Gateway in `../backend/mcp-gateway`. It is the **only** backend the browser ever talks to — the MCP Gateway (`127.0.0.1:8000`, mounting `/docker` and `/ignition`, gated by an `X-API-Key` header) stays internal and is never reached directly by the browser.
+This repo (`chat-bridge`) is a standalone backend-for-frontend (BFF): Python FastAPI + Claude Agent SDK, sitting between the Angular app (`../frontend`) and a shared MCP gateway running elsewhere on the host. It is the **only** backend the browser ever talks to. As of Phase 10 (see `Deployment/Phase10_*.pdf`), this project runs no gateway of its own — chat-bridge is an Ignition-specific frontend, and talks directly to a pre-existing, shared gateway (also used by other tools on the host) at `/ignition/mcp`, gated by an `X-API-Key` header.
 
 ## Ownership
 
 Chat Bridge owns:
-- `/api/auth/login`, `/api/auth/signup` — mock user (`test@angular-university.io` / `Angular123`), JWT issuance, no persistent DB for now
+- `/api/auth/login` — permanent, SQLite-backed accounts (see `Deployment/Phase8_*.pdf`); signup is closed, accounts are provisioned by an operator CLI
 - `/api/chat` WebSocket, JWT-verified — runs `claude-agent-sdk`'s `ClaudeSDKClient`/`query()` per conversation, streams `SDKMessage` events back
-- Holds the Gateway's `X-API-Key` server-side; MCP servers configured pointing at the Gateway's `/docker/mcp` and `/ignition/mcp` streamable-HTTP endpoints
+- Holds the shared gateway's `X-API-Key` server-side, plus the production Ignition gateway's own `gateway_url`/`api_key`, instructed via `system_prompt` on every `mcp__ignition__*` call (the shared gateway is multi-tenant and defaults to a different, unrelated Ignition instance)
 
 The frontend project ships an empty Express skeleton (`../frontend/server/`) — deliberately **not used**. Its `proxy.conf.json` gets repointed from `:9000` to this Bridge's port so the frontend's "`/api` only" convention holds without Express in the path.
 
