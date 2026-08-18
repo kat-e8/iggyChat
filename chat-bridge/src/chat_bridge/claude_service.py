@@ -43,8 +43,30 @@ def _mcp_servers() -> dict[str, dict[str, Any]]:
     }
 
 
+def _system_prompt() -> str:
+    # The shared gateway serves multiple consumers and defaults to a dev
+    # Ignition instance -- every mcp__ignition__* tool call must explicitly
+    # override gateway_url/api_key to reach this app's production target,
+    # or the call fails with "Failed to reach gateway" against the wrong
+    # instance. Confirmed by testing: omitting the override reproduces
+    # exactly that error. A plain string (not a preset) also means this
+    # session skips the full Claude Code system prompt entirely -- this app
+    # is a narrow Ignition assistant, not a coding agent, and the smaller
+    # prompt is less per-turn token overhead (see Phase7's cost findings).
+    return (
+        "You are the Ignition assistant for this app. Answer using the "
+        "mcp__ignition__* tools only. On every call to one of those tools, "
+        "always pass gateway_url="
+        f'"{settings.ignition_target_gateway_url}" and api_key='
+        f'"{settings.ignition_target_api_key}" explicitly -- the tool '
+        "server's own default target is a different, unrelated Ignition "
+        "instance."
+    )
+
+
 def build_options() -> ClaudeAgentOptions:
     return ClaudeAgentOptions(
+        system_prompt=_system_prompt(),
         mcp_servers=_mcp_servers(),
         # tools=[] disables every built-in Claude Code tool (Bash, Read,
         # Write, Edit, Grep, WebFetch, ...) -- without this, a chat user gets

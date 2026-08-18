@@ -18,6 +18,17 @@ class Settings(BaseSettings):
     )
     ignition_mcp_api_key: str = Field(validation_alias="IGNITION_MCP_API_KEY")
 
+    # The shared gateway is multi-tenant -- its own baked-in default Ignition
+    # target is a dev instance, not this app's production one. Every
+    # mcp__ignition__* call must pass these as explicit gateway_url/api_key
+    # overrides (see claude_service.py's system_prompt) rather than relying
+    # on the gateway's default.
+    ignition_target_gateway_url: str = Field(
+        default="http://clubuntu.dala-cirius.ts.net:9011",
+        validation_alias="IGNITION_TARGET_GATEWAY_URL",
+    )
+    ignition_target_api_key: str = Field(validation_alias="IGNITION_TARGET_API_KEY")
+
     host: str = Field(default="127.0.0.1", validation_alias="CHAT_BRIDGE_HOST")
     port: int = Field(default=8001, validation_alias="CHAT_BRIDGE_PORT")
 
