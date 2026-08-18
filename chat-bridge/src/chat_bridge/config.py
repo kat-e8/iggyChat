@@ -41,6 +41,12 @@ class Settings(BaseSettings):
         # value triggered it.
         return None if v == "" else v
 
+    # Permanent user accounts (user_store.py) -- separate file from
+    # usage.db, same persistent volume. See Deployment/Phase8_*.pdf.
+    users_db_path: Path = Field(
+        default=Path("chat_bridge_users.db"), validation_alias="CHAT_BRIDGE_USERS_DB_PATH"
+    )
+
     jwt_secret: str
     jwt_expire_minutes: int = Field(default=1440, validation_alias="JWT_EXPIRE_MINUTES")
     # Off by default for local http dev; set true once served over https.

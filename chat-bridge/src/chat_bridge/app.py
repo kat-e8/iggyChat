@@ -1,9 +1,14 @@
 """FastAPI entrypoint for the Chat Bridge.
 
-/api/chat requires the same JWT issued by /api/auth/login or
-/api/auth/signup, carried as the httpOnly `access_token` cookie -- the
-browser attaches it automatically to the WebSocket upgrade request, so the
-Angular client never has to manage the token itself.
+/api/chat requires the JWT issued by /api/auth/login, carried as the
+httpOnly `access_token` cookie -- the browser attaches it automatically to
+the WebSocket upgrade request, so the Angular client never has to manage
+the token itself.
+
+Signup is closed -- there is no /api/auth/signup. Accounts are provisioned
+by the operator via `docker exec ... python -m chat_bridge.manage_users
+add <email>`, on top of the tailnet-only network access this app already
+has. See Deployment/Phase8_*.pdf.
 """
 
 import asyncio
@@ -17,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import usage_store
-from .auth import authenticate_user, create_access_token, create_user, decode_access_token
+from .auth import authenticate_user, create_access_token, decode_access_token
 from .claude_service import ChatSession
 from .config import settings
 
@@ -69,15 +74,6 @@ def _require_auth(request: Request) -> str:
 async def usage(request: Request) -> dict[str, Any]:
     _require_auth(request)
     return await asyncio.to_thread(usage_store.summary)
-
-
-@app.post("/api/auth/signup", status_code=201)
-async def signup(body: AuthRequest, response: Response) -> TokenResponse:
-    try:
-        create_user(body.email, body.password)
-    except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
-    return _issue_token(body.email, response)
 
 
 @app.post("/api/auth/login")

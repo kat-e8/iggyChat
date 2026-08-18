@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { FormField, FormRoot, email, form, required, submit } from '@angular/forms/signals';
 import { Auth } from '../../core/auth/auth';
 import { AuthCredentials } from '../../core/auth/auth.models';
@@ -8,7 +8,7 @@ import { PasswordField } from '../password-field/password-field';
 
 @Component({
   selector: 'sign-in',
-  imports: [AuthShell, FormField, FormRoot, PasswordField, RouterLink],
+  imports: [AuthShell, FormField, FormRoot, PasswordField],
   templateUrl: './sign-in.html',
   styleUrl: './sign-in.scss',
 })

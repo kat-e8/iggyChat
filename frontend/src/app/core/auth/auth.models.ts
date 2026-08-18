@@ -3,10 +3,6 @@ export type AuthCredentials = {
   password: string;
 };
 
-export type SignUpCredentials = AuthCredentials & {
-  confirmPassword: string;
-};
-
 export type AuthErrorBody = {
   detail?: string;
 };

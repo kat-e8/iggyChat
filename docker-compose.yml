@@ -72,6 +72,10 @@ services:
       # recreating the container on every deploy, since its whole purpose is
       # tracking cumulative spend over days/weeks.
       - CHAT_BRIDGE_USAGE_DB_PATH=/data/usage.db
+      # Same reasoning, separate file: permanent user accounts (see
+      # Deployment/Phase8_*.pdf) must survive redeploys too, on the same
+      # persistent volume as usage.db.
+      - CHAT_BRIDGE_USERS_DB_PATH=/data/users.db
     volumes:
       - chat-bridge-data:/data
     depends_on:

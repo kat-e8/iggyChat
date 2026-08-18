@@ -10,10 +10,6 @@ export class Auth {
     await this.authenticate('/api/auth/login', credentials);
   }
 
-  async signup(credentials: AuthCredentials) {
-    await this.authenticate('/api/auth/signup', credentials);
-  }
-
   // Clears local state only. The Chat Bridge issues the session as an
   // httpOnly cookie, which client-side code can't read or clear, and the
   // Bridge doesn't expose a logout endpoint yet -- so the cookie itself

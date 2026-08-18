@@ -1,10 +1,16 @@
-"""Mock user store, password hashing, and JWT issuance/verification.
+"""Password hashing and JWT issuance/verification.
 
-No persistent DB -- users live in an in-memory dict for the process's
-lifetime, seeded with the mock user implied by the frontend's reference
-screenshots (test@angular-university.io / Angular123). Whether this carries
-through to a later environment with real user storage is an open question,
-not resolved here.
+User accounts are persisted in user_store.py's SQLite table -- not an
+in-memory dict, which lost every signed-up account on every process
+restart (see Deployment/Phase7_Cost_Diagnostics_And_Usage_Guardrails.pdf).
+
+Signup is closed: there is no HTTP endpoint that creates accounts.
+Accounts are provisioned by the operator via manage_users.py (`docker exec`
+into the container and run it), on top of the tailnet-only network access
+this app already has. See Deployment/Phase8_*.pdf for why, and for JWT
+revocation's one known limitation (removing a user does not invalidate an
+already-issued cookie for it -- tokens are checked by signature/expiry
+only, not by re-querying the user store on every request).
 """
 
 from datetime import datetime, timedelta, timezone
@@ -13,28 +19,18 @@ import jwt
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
+from . import user_store
 from .config import settings
 
 _hasher = PasswordHasher()
 
-_users: dict[str, str] = {}  # email -> argon2 hash
-
-
-def _seed_mock_user() -> None:
-    _users["test@angular-university.io"] = _hasher.hash("Angular123")
-
-
-_seed_mock_user()
-
-
-def create_user(email: str, password: str) -> None:
-    if email in _users:
-        raise ValueError("User already exists")
-    _users[email] = _hasher.hash(password)
+# Idempotent: a no-op once the row exists, including after the operator has
+# added real accounts -- safe to call on every startup.
+user_store.seed_mock_user_if_absent(_hasher.hash("Angular123"))
 
 
 def authenticate_user(email: str, password: str) -> bool:
-    hashed = _users.get(email)
+    hashed = user_store.get_password_hash(email)
     if hashed is None:
         return False
     try:

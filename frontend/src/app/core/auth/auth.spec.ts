@@ -60,17 +60,6 @@ describe('Auth', () => {
     expect(service.isAuthenticated()).toBe(false);
   });
 
-  it('signup() posts credentials to /api/auth/signup and marks the session authenticated', async () => {
-    fetchSpy.mockResolvedValue(
-      mockResponse(201, { access_token: 'token', token_type: 'bearer' }),
-    );
-
-    await service.signup({ email: 'new@example.com', password: 'hunter2pass' });
-
-    expect(fetchSpy).toHaveBeenCalledWith('/api/auth/signup', expect.objectContaining({ method: 'POST' }));
-    expect(service.isAuthenticated()).toBe(true);
-  });
-
   it('logout() clears the local session state', async () => {
     fetchSpy.mockResolvedValue(mockResponse(200, { access_token: 'token', token_type: 'bearer' }));
     await service.login({ email: 'test@angular-university.io', password: 'Angular123' });
