@@ -1,0 +1,23 @@
+[project]
+name = "chat-bridge"
+version = "0.1.0"
+description = "Backend-for-frontend bridging the Angular chat UI and the MCP Gateway via the Claude Agent SDK"
+authors = [
+    { name = "kat-e8", email = "katlego.gagoopane@element8.co.za" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "argon2-cffi>=23.1.0",
+    "claude-agent-sdk>=0.1.0",
+    "fastapi>=0.141.1",
+    "pydantic-settings>=2.6.0",
+    "pyjwt>=2.13.0",
+    "uvicorn[standard]>=0.52.1",
+]
+
+[project.scripts]
+chat-bridge = "chat_bridge:main"
+
+[build-system]
+requires = ["uv_build>=0.12.3,<0.13.0"]
+build-backend = "uv_build"
