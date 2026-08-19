@@ -69,7 +69,25 @@ def _system_prompt() -> str:
         f'api_key="{settings.ignition_dev_api_key}"\n'
         "Use ignition-dev unless the user explicitly asks for the prod "
         'gateway (e.g. "ignition-prod", "the prod instance", "production") '
-        "for that turn."
+        "for that turn.\n\n"
+        "mcp__ignition__edit_tags / create_tags path pitfall: passing a "
+        "nested tag as a flat 'name' (e.g. name=\"Folder/Tag\") or as a "
+        "'path' field does NOT address the existing nested tag -- it "
+        "silently creates a new, unrelated tag at the provider root "
+        "instead, leaving the real tag unchanged. Confirmed by direct "
+        "testing against this same tool. To edit a tag inside a folder, "
+        "nest it the way Ignition's own tag export JSON does: wrap it in "
+        "its parent folder object(s), e.g. to edit [default]Ramp/Ramp1:\n"
+        '  {"name": "Ramp", "tagType": "Folder", "tags": '
+        '[{"name": "Ramp1", "historyEnabled": true, "historyProvider": "DB"}]}\n'
+        "After every edit_tags/create_tags call that targets a nested tag, "
+        "verify the change actually landed by calling get_tag_config on the "
+        "exact target path and confirming the fields you set are present. "
+        "Also browse_tags the provider root once to confirm no stray "
+        "sibling tag was created there. If verification shows the wrong "
+        "tag was created or the target tag is unchanged, do not report "
+        "success -- retry with the corrected nested structure, and only "
+        "report the operation as done once verification passes."
     )
 
 
