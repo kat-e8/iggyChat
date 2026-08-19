@@ -108,6 +108,20 @@ export class Chat {
     if (message.type === 'ResultMessage') {
       this.awaitingReply.set(false);
       this.currentAssistantId = null;
+      return;
+    }
+    if (message.type === 'error') {
+      // A hard failure the backend gave up on -- stop waiting, surface it.
+      this.awaitingReply.set(false);
+      this.currentAssistantId = null;
+      this.connectionError.set(message.message ?? 'The chat service returned an error.');
+      return;
+    }
+    if (message.type === 'warning') {
+      // Non-blocking heads-up (e.g. soft budget threshold) -- the backend
+      // still processes this turn normally, so don't touch awaitingReply.
+      this.connectionError.set(message.message ?? null);
+      return;
     }
     // Other frame types (SystemMessage, StreamEvent, ...) aren't rendered yet.
   }

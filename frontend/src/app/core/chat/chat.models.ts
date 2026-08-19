@@ -30,4 +30,7 @@ export type WireContentBlock = {
 export type WireMessage = {
   type: string;
   content?: WireContentBlock[];
+  // Only present on "error"/"warning" frames -- see app.py's WebSocket
+  // handler for the budget-check frame this backs.
+  message?: string;
 };

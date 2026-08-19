@@ -97,21 +97,26 @@ async def chat(websocket: WebSocket) -> None:
             while True:
                 raw = await websocket.receive_text()
                 # Checked per message, not once at connect -- a long-lived
-                # WebSocket session must not be able to keep sending once
-                # today's cumulative spend (across every session) crosses
-                # the configured cap.
+                # WebSocket session should keep seeing this on every message
+                # once today's cumulative *estimated* spend (across every
+                # session) crosses the configured threshold. This is a soft
+                # heads-up, not a real spend cap: the SDK reports cost as if
+                # metered per-token regardless of auth method, but this app
+                # runs on a flat-rate subscription seat with no overage
+                # billing, so there's no real money at stake -- don't block
+                # the turn over it.
                 if await asyncio.to_thread(usage_store.daily_budget_exceeded):
                     await websocket.send_json(
                         {
-                            "type": "error",
-                            "error": "daily_budget_exceeded",
+                            "type": "warning",
+                            "warning": "daily_budget_exceeded",
                             "message": (
-                                "Daily Claude usage budget has been reached. "
-                                "Try again tomorrow, or raise CHAT_BRIDGE_MAX_DAILY_BUDGET_USD."
+                                "Today's estimated Claude usage has crossed the "
+                                "configured soft budget. This doesn't block "
+                                "anything -- just a heads-up."
                             ),
                         }
                     )
-                    continue
                 payload = json.loads(raw)
                 prompt = payload.get("content", "")
                 async for message in session.send(prompt):
