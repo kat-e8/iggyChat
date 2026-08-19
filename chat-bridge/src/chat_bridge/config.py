@@ -29,6 +29,17 @@ class Settings(BaseSettings):
     )
     ignition_target_api_key: str = Field(validation_alias="IGNITION_TARGET_API_KEY")
 
+    # Second named target ("ignition-dev"), so the model can resolve either
+    # alias within a chat turn instead of only ever hitting the fixed prod
+    # target above (see claude_service.py's system_prompt). Deliberately
+    # scoped to Ignition only -- this app has no Docker/Postgres tools wired
+    # in and isn't gaining any here.
+    ignition_dev_gateway_url: str = Field(
+        default="http://katlegog.dala-cirius.ts.net:8088",
+        validation_alias="IGNITION_DEV_GATEWAY_URL",
+    )
+    ignition_dev_api_key: str = Field(validation_alias="IGNITION_DEV_API_KEY")
+
     host: str = Field(default="127.0.0.1", validation_alias="CHAT_BRIDGE_HOST")
     port: int = Field(default=8001, validation_alias="CHAT_BRIDGE_PORT")
 

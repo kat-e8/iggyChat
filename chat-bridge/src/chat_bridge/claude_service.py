@@ -46,21 +46,29 @@ def _mcp_servers() -> dict[str, dict[str, Any]]:
 def _system_prompt() -> str:
     # The shared gateway serves multiple consumers and defaults to a dev
     # Ignition instance -- every mcp__ignition__* tool call must explicitly
-    # override gateway_url/api_key to reach this app's production target,
-    # or the call fails with "Failed to reach gateway" against the wrong
-    # instance. Confirmed by testing: omitting the override reproduces
+    # override gateway_url/api_key to reach one of this app's own named
+    # targets, or the call fails with "Failed to reach gateway" against the
+    # wrong instance. Confirmed by testing: omitting the override reproduces
     # exactly that error. A plain string (not a preset) also means this
     # session skips the full Claude Code system prompt entirely -- this app
     # is a narrow Ignition assistant, not a coding agent, and the smaller
     # prompt is less per-turn token overhead (see Phase7's cost findings).
+    #
+    # Two named targets, mirroring the ignition-dev/ignition-prod aliases
+    # already used elsewhere on this host -- deliberately Ignition-only,
+    # this app has no Docker/Postgres tools to resolve aliases for.
     return (
         "You are the Ignition assistant for this app. Answer using the "
         "mcp__ignition__* tools only. On every call to one of those tools, "
-        "always pass gateway_url="
-        f'"{settings.ignition_target_gateway_url}" and api_key='
-        f'"{settings.ignition_target_api_key}" explicitly -- the tool '
+        "you must explicitly pass gateway_url and api_key -- the tool "
         "server's own default target is a different, unrelated Ignition "
-        "instance."
+        "instance. Two named targets are available:\n"
+        f'- "ignition-prod": gateway_url="{settings.ignition_target_gateway_url}", '
+        f'api_key="{settings.ignition_target_api_key}"\n'
+        f'- "ignition-dev": gateway_url="{settings.ignition_dev_gateway_url}", '
+        f'api_key="{settings.ignition_dev_api_key}"\n'
+        "Use ignition-prod unless the user explicitly asks for the dev "
+        'gateway (e.g. "ignition-dev", "the dev instance") for that turn.'
     )
 
 
