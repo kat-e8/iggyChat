@@ -2,10 +2,9 @@
 
 A local file, not a service -- this app is single-instance, single-user
 (see auth.py's mock user model), so anything heavier is unwarranted.
-Backs the daily budget cap in app.py's WebSocket handler and the
-GET /api/usage endpoint. All functions here are synchronous; callers in
-async code paths should wrap them in asyncio.to_thread so a DB write
-doesn't block the event loop for every other connected client.
+Backs the GET /api/usage endpoint. All functions here are synchronous;
+callers in async code paths should wrap them in asyncio.to_thread so a
+DB write doesn't block the event loop for every other connected client.
 """
 
 import sqlite3
@@ -67,25 +66,10 @@ def record_usage(session_id: str, model_key: str, usage: dict[str, Any]) -> None
         )
 
 
-def total_cost_since(cutoff_ts: float) -> float:
-    with _db() as conn:
-        row = conn.execute(
-            "SELECT COALESCE(SUM(cost_usd), 0) FROM usage_events WHERE ts >= ?",
-            (cutoff_ts,),
-        ).fetchone()
-        return float(row[0])
-
-
 def _utc_day_start(ts: float) -> float:
     # time.time() is UTC epoch seconds, so this is UTC-midnight -- fine for
     # a personal daily cap; not meant to align with the user's local day.
     return ts - (ts % 86400)
-
-
-def daily_budget_exceeded() -> bool:
-    if settings.max_daily_budget_usd is None:
-        return False
-    return total_cost_since(_utc_day_start(time.time())) >= settings.max_daily_budget_usd
 
 
 def summary() -> dict[str, Any]:

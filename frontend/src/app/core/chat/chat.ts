@@ -117,12 +117,6 @@ export class Chat {
       this.connectionError.set(message.message ?? 'The chat service returned an error.');
       return;
     }
-    if (message.type === 'warning') {
-      // Non-blocking heads-up (e.g. soft budget threshold) -- the backend
-      // still processes this turn normally, so don't touch awaitingReply.
-      this.connectionError.set(message.message ?? null);
-      return;
-    }
     // Other frame types (SystemMessage, StreamEvent, ...) aren't rendered yet.
   }
 
