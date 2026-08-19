@@ -67,8 +67,9 @@ def _system_prompt() -> str:
         f'api_key="{settings.ignition_target_api_key}"\n'
         f'- "ignition-dev": gateway_url="{settings.ignition_dev_gateway_url}", '
         f'api_key="{settings.ignition_dev_api_key}"\n'
-        "Use ignition-prod unless the user explicitly asks for the dev "
-        'gateway (e.g. "ignition-dev", "the dev instance") for that turn.'
+        "Use ignition-dev unless the user explicitly asks for the prod "
+        'gateway (e.g. "ignition-prod", "the prod instance", "production") '
+        "for that turn."
     )
 
 
