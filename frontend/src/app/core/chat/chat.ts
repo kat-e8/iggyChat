@@ -11,11 +11,12 @@ export class Chat {
   readonly connected = signal(false);
   readonly awaitingReply = signal(false);
   readonly connectionError = signal<string | null>(null);
-  // The scope this session is connected with. Set optimistically here when
-  // connect() is called, then corrected (if needed) once Chat-Bridge's
-  // "session_scope" frame confirms what it actually applied -- see
-  // handleFrame(). Fixed for the session: there is no way to change it short
-  // of reset() + connect() again with a different value.
+  // The scope this session is connected with. Set optimistically by
+  // connect(), corrected (if needed) once Chat-Bridge's "session_scope"
+  // frame confirms what it actually applied -- see handleFrame(). Can change
+  // mid-session via changeScope(), which waits for that same confirmation
+  // frame rather than setting this optimistically, since an invalid/no-op
+  // request just gets the current value echoed back.
   readonly scope = signal<Scope>('ignition');
 
   // Defaults to whatever scope this session is already using, so a
@@ -54,6 +55,22 @@ export class Chat {
         reject(error);
       });
     });
+  }
+
+  // Switches scope for the current conversation, without dropping it. If not
+  // yet connected, this is just the initial scope choice (same as passing it
+  // to connect()). If already connected, sends a "change_scope" message over
+  // the existing socket -- Chat-Bridge swaps its MCP servers and resumes the
+  // same underlying Claude session, so message history isn't lost, only the
+  // connected tools change. scope() updates from the server's "session_scope"
+  // confirmation, not optimistically here, since the request could be a
+  // no-op or invalid and get the current value echoed back instead.
+  changeScope(scope: Scope) {
+    if (!this.connected()) {
+      void this.connect(scope);
+      return;
+    }
+    this.socket?.send(JSON.stringify({ action: 'change_scope', scope }));
   }
 
   disconnect() {

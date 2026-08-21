@@ -1,0 +1,11 @@
+<select
+  class="scope-select"
+  [class]="'scope-' + scope()"
+  [value]="scope()"
+  (change)="onChange($event)"
+  aria-label="Conversation scope"
+>
+  @for (option of options; track option.value) {
+    <option [value]="option.value">{{ option.label }}</option>
+  }
+</select>

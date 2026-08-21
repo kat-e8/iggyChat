@@ -144,9 +144,13 @@ def _system_prompt(servers: dict[str, dict[str, Any]]) -> str:
     )
 
 
-def build_options(scope: str = DEFAULT_SCOPE) -> ClaudeAgentOptions:
+def build_options(scope: str = DEFAULT_SCOPE, resume: str | None = None) -> ClaudeAgentOptions:
     servers = {name: spec for name, spec in _mcp_servers().items() if name in SCOPES[scope]}
     return ClaudeAgentOptions(
+        # Set when switching scope mid-conversation (see ChatSession.switch_scope)
+        # so the underlying Claude session's history carries over -- only the
+        # connected MCP servers change, not the conversation itself.
+        resume=resume,
         system_prompt=_system_prompt(servers),
         mcp_servers=servers,
         # tools=[] disables every built-in Claude Code tool (Bash, Read,
@@ -211,13 +215,14 @@ def serialize_message(message: Any) -> dict[str, Any]:
 class ChatSession:
     """Wraps one ClaudeSDKClient for the lifetime of a single chat WebSocket connection.
 
-    scope is fixed at construction and there is no method to change it later --
-    that's deliberate. Changing scope means opening a new WebSocket (and thus a
-    new ChatSession), never mutating one mid-conversation.
+    scope can change mid-conversation via switch_scope() -- see there for how
+    conversation continuity survives that despite the underlying
+    ClaudeSDKClient being torn down and rebuilt.
     """
 
     def __init__(self, scope: str = DEFAULT_SCOPE) -> None:
         self.scope = scope
+        self._session_id: str | None = None
         self._client = ClaudeSDKClient(options=build_options(scope))
 
     async def __aenter__(self) -> "ChatSession":
@@ -230,9 +235,29 @@ class ChatSession:
     async def send(self, prompt: str) -> AsyncIterator[dict[str, Any]]:
         await self._client.query(prompt)
         async for message in self._client.receive_response():
+            session_id = getattr(message, "session_id", None)
+            if session_id:
+                self._session_id = session_id
             if isinstance(message, ResultMessage):
                 await _record_turn_cost(message)
             yield serialize_message(message)
+
+    async def switch_scope(self, scope: str) -> None:
+        """Swap which MCP servers/tools this session has connected, without
+        losing the conversation: the old ClaudeSDKClient is disconnected and a
+        new one built for the new scope, but passed `resume=self._session_id`
+        so the same underlying Claude conversation continues -- only the
+        connected tools change, not the message history.
+
+        No-ops (still safe to call) if no turn has happened yet -- resume=None
+        is just build_options()'s normal fresh-session behavior.
+        """
+        if scope == self.scope:
+            return
+        await self._client.disconnect()
+        self.scope = scope
+        self._client = ClaudeSDKClient(options=build_options(scope, resume=self._session_id))
+        await self._client.connect()
 
 
 async def _record_turn_cost(message: ResultMessage) -> None:

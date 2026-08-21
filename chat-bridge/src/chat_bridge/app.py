@@ -91,10 +91,11 @@ async def chat(websocket: WebSocket) -> None:
         await websocket.close(code=1008)
         return
 
-    # Scope is chosen once, by the query string, at connect time -- there is
-    # no in-session message that can change it (see ChatSession's docstring).
-    # Fail safe to the narrowest scope on anything missing or unrecognized;
-    # never fail open to "all".
+    # Initial scope, from the query string at connect time. Fail safe to the
+    # narrowest scope on anything missing or unrecognized; never fail open to
+    # "all". Can change later, mid-connection, via a "change_scope" message
+    # below -- the WebSocket itself stays open across that, only the
+    # underlying ChatSession's connected servers change (see switch_scope).
     requested_scope = websocket.query_params.get("scope")
     scope = requested_scope if requested_scope in SCOPES else DEFAULT_SCOPE
 
@@ -108,6 +109,17 @@ async def chat(websocket: WebSocket) -> None:
             while True:
                 raw = await websocket.receive_text()
                 payload = json.loads(raw)
+
+                if payload.get("action") == "change_scope":
+                    requested = payload.get("scope")
+                    if requested in SCOPES:
+                        await session.switch_scope(requested)
+                    # Always re-confirm current scope, even for an invalid
+                    # request or a no-op (already-selected) one -- keeps the
+                    # client's badge/dropdown in sync with reality either way.
+                    await websocket.send_json({"type": "session_scope", "scope": session.scope})
+                    continue
+
                 prompt = payload.get("content", "")
                 async for message in session.send(prompt):
                     await websocket.send_json(message)

@@ -95,6 +95,31 @@ describe('Chat', () => {
     expect(service.scope()).toBe('ignition');
   });
 
+  it('changeScope() before any connection just connects with that scope', () => {
+    service.changeScope('generic');
+    const socket = MockWebSocket.instances[0];
+
+    expect(socket.url).toContain('scope=generic');
+  });
+
+  it('changeScope() while connected sends a change_scope message and waits for confirmation', async () => {
+    const connectPromise = service.connect('ignition');
+    const socket = MockWebSocket.instances[0];
+    socket.dispatch('open', {});
+    await connectPromise;
+
+    service.changeScope('generic');
+
+    expect(socket.sent).toContain(JSON.stringify({ action: 'change_scope', scope: 'generic' }));
+    // Not applied optimistically -- still the pre-switch value until confirmed.
+    expect(service.scope()).toBe('ignition');
+    // No second socket opened -- the existing connection is reused.
+    expect(MockWebSocket.instances.length).toBe(1);
+
+    socket.dispatchMessage({ type: 'session_scope', scope: 'generic' });
+    expect(service.scope()).toBe('generic');
+  });
+
   it('send() appends a user message and a placeholder assistant message, then sends the prompt', async () => {
     const connectPromise = service.connect();
     MockWebSocket.instances[0].dispatch('open', {});

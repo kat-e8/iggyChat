@@ -1,0 +1,50 @@
+@use 'theme';
+
+.scope-select {
+  appearance: none;
+  padding: 0.25rem 1.75rem 0.25rem 0.875rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-family: theme.$font-family;
+  border: 1px solid theme.$color-border;
+  color: theme.$color-text;
+  cursor: pointer;
+
+  // Custom chevron -- appearance:none above drops the native one.
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239089ab' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+
+  &:hover {
+    border-color: theme.$color-primary;
+  }
+
+  &:focus-visible {
+    outline: 2px solid theme.$color-primary;
+    outline-offset: 2px;
+  }
+
+  // Ignition (the narrow default) reads as calm/neutral; Generic and All
+  // (the explicit widenings, with a higher blast radius) use the same
+  // accent as other elevated actions in this app (e.g. logout).
+  &.scope-ignition {
+    background-color: theme.$color-input-bg;
+    color: theme.$color-text-muted;
+  }
+
+  &.scope-generic,
+  &.scope-all {
+    background-color: rgba(236, 18, 100, 0.12);
+    border-color: theme.$color-accent;
+    color: theme.$color-accent-hover;
+  }
+
+  option {
+    background: theme.$color-card-bg;
+    color: theme.$color-text;
+    text-transform: none;
+  }
+}
