@@ -1,6 +1,6 @@
 """Wires the Claude Agent SDK to two independent gateways:
 
-- the shared Ignition MCP gateway (see Deployment/Phase10_*.pdf) -- iggyChat
+- the shared Ignition MCP gateway (see Deployment/Phase10_*.pdf) -- Rosetta
   doesn't run one of its own, streamable-HTTP straight to the shared server,
   gated by the X-API-Key header held here rather than passed to the browser.
 - the Generic Gateway (ManPage/api) -- docker-mcp, git-mcp, postgres-mcp,

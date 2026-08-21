@@ -1,23 +1,27 @@
 // Shared design tokens. Import via `@use 'theme';` (includePaths: src/styles,
 // configured in angular.json) so every component draws from one palette.
+//
+// Navy/teal, matched to the Rosetta mark (sampled from the logo assets: page
+// background is the mark's own dark navy backing, #091428; accent is its
+// bright cyan-teal, #02ffe4, softened slightly here for text/UI contrast).
 
-$color-page-bg: #241344;
-$color-card-bg: #170b2e;
-$color-input-bg: #2c1c4f;
-$color-input-bg-focus: #382465;
+$color-page-bg: #0a1428;
+$color-card-bg: #0f1d33;
+$color-input-bg: #142640;
+$color-input-bg-focus: #1b3150;
 $color-border: rgba(255, 255, 255, 0.08);
 
-$color-primary: #5b52f0;
-$color-primary-hover: #6c63ff;
+$color-primary: #14b8a6;
+$color-primary-hover: #2dd4bf;
 
-// Chat's send button / focus accent -- distinct from the auth screens'
-// indigo primary, matching ui-screenshots/chat-*.png.
-$color-accent: #ec1264;
-$color-accent-hover: #f4317c;
+// Chat's send button / logout accent -- closer to the mark's exact teal than
+// $color-primary, for the actions that should read as "the brand color".
+$color-accent: #06d6c4;
+$color-accent-hover: #3ef0dd;
 
-$color-text: #f5f3fa;
-$color-text-muted: #9089ab;
-$color-link: #7c86f5;
+$color-text: #eef3f8;
+$color-text-muted: #7c8aa0;
+$color-link: #2dd4bf;
 $color-error: #f87171;
 
 $font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;

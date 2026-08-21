@@ -32,12 +32,12 @@ jobs:
         run: |
           docker build \
             -f ${{ matrix.dockerfile }} \
-            -t clubuntu.dala-cirius.ts.net:5000/iggychat-${{ matrix.service }}:${{ github.sha }} \
-            -t clubuntu.dala-cirius.ts.net:5000/iggychat-${{ matrix.service }}:main \
+            -t clubuntu.dala-cirius.ts.net:5000/rosetta-${{ matrix.service }}:${{ github.sha }} \
+            -t clubuntu.dala-cirius.ts.net:5000/rosetta-${{ matrix.service }}:main \
             ${{ matrix.context }}
 
       - name: Push ${{ matrix.service }}
         # Registry is unauthenticated (tailnet-only) -- no docker login step.
         run: |
-          docker push clubuntu.dala-cirius.ts.net:5000/iggychat-${{ matrix.service }}:${{ github.sha }}
-          docker push clubuntu.dala-cirius.ts.net:5000/iggychat-${{ matrix.service }}:main
+          docker push clubuntu.dala-cirius.ts.net:5000/rosetta-${{ matrix.service }}:${{ github.sha }}
+          docker push clubuntu.dala-cirius.ts.net:5000/rosetta-${{ matrix.service }}:main

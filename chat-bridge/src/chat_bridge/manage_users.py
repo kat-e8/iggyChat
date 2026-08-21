@@ -5,9 +5,9 @@ way to add one. Run via `docker exec -it` (the -it matters: `add` prompts
 for a password rather than taking it as an argument, so it never lands in
 shell history or `docker inspect`'s recorded process list):
 
-    docker exec -it iggychat-chat-bridge /app/.venv/bin/python -m chat_bridge.manage_users add you@example.com
-    docker exec -it iggychat-chat-bridge /app/.venv/bin/python -m chat_bridge.manage_users list
-    docker exec -it iggychat-chat-bridge /app/.venv/bin/python -m chat_bridge.manage_users remove you@example.com
+    docker exec -it rosetta-chat-bridge /app/.venv/bin/python -m chat_bridge.manage_users add you@example.com
+    docker exec -it rosetta-chat-bridge /app/.venv/bin/python -m chat_bridge.manage_users list
+    docker exec -it rosetta-chat-bridge /app/.venv/bin/python -m chat_bridge.manage_users remove you@example.com
 """
 
 import argparse

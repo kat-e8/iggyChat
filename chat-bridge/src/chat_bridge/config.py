@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    # iggyChat is an Ignition frontend -- it talks to the pre-existing,
+    # Rosetta is an Ignition frontend -- it talks to the pre-existing,
     # shared MCP gateway that already serves /ignition/mcp for other tools
     # on this host (Claude Code's own "ignition-gw" MCP server config points
     # at the same URL), rather than running a duplicate gateway of its own.

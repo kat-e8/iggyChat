@@ -1,5 +1,17 @@
 # Explicit project name so container/network/volume names are predictable
 # regardless of which directory this is checked out into or run from.
+#
+# Deliberately left as "iggychat", not renamed to "rosetta" alongside the
+# rest of the project's rebrand -- Compose derives the actual named volumes
+# below (chat-bridge-data, holding real user accounts + usage history) from
+# this project name when they have no explicit `name:` override, which
+# neither does. Changing this to "rosetta" would make the next deploy
+# silently attach to a brand-new empty volume instead of the real one -- not
+# data loss, but data becoming invisible without any error. Safe to rename
+# once (and only once) that volume has been migrated to a "rosetta_*" name
+# on clubuntu first (`docker volume create` + copy via a throwaway
+# container), which is a one-time host-side step, not something to change
+# here casually.
 name: iggychat
 
 services:
@@ -9,14 +21,14 @@ services:
       # app in before running `docker compose up`.
       context: ./chat-bridge
       dockerfile: Dockerfile
-    image: clubuntu.dala-cirius.ts.net:5000/iggychat-chat-bridge:${TAG:-dev}
+    image: clubuntu.dala-cirius.ts.net:5000/rosetta-chat-bridge:${TAG:-dev}
     # The only service this compose file publishes to the host -- the single
     # public entry point the browser talks to.
     ports:
       - "8001:8001"
     env_file:
       - ./chat-bridge/.env
-    container_name: iggychat-chat-bridge
+    container_name: rosetta-chat-bridge
     environment:
       - CHAT_BRIDGE_HOST=0.0.0.0
       # Not this project's own gateway -- a shared MCP gateway already
@@ -42,7 +54,7 @@ services:
       # (see frontend/nginx.conf).
       context: ./frontend
       dockerfile: Dockerfile
-    image: clubuntu.dala-cirius.ts.net:5000/iggychat-frontend:${TAG:-dev}
+    image: clubuntu.dala-cirius.ts.net:5000/rosetta-frontend:${TAG:-dev}
     # Second host-published service, alongside chat-bridge -- the browser
     # talks to this nginx for the app shell and static assets; nginx forwards
     # /api/* to chat-bridge:8001 via compose service-name DNS.
@@ -50,7 +62,7 @@ services:
     # clubuntu host (filebrowser) -- published on 8090 instead.
     ports:
       - "8090:80"
-    container_name: iggychat-frontend
+    container_name: rosetta-frontend
     volumes:
       - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - nginx-logs:/var/log/nginx
