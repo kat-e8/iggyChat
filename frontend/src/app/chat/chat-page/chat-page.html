@@ -36,11 +36,29 @@
   </aside>
 
   <main class="content">
+    @if (!showScopePicker()) {
+      <div class="scope-bar">
+        <span class="scope-badge" [class]="'scope-' + chat.scope()">{{ scopeLabel() }}</span>
+      </div>
+    }
+
     @if (chat.connectionError(); as connectionError) {
       <p class="connection-error" role="alert">{{ connectionError }}</p>
     }
 
-    @if (!hasMessages()) {
+    @if (showScopePicker()) {
+      <div class="empty-state">
+        <img
+          ngSrc="images/ignitionchat-logo.png"
+          width="500"
+          height="500"
+          priority
+          alt="IgnitionChat -- AI interface to your SCADA platform"
+          class="brand-logo"
+        />
+        <chat-scope-picker (scopeChosen)="onScopeChosen($event)" />
+      </div>
+    } @else if (!hasMessages()) {
       <div class="empty-state">
         <img
           ngSrc="images/ignitionchat-logo.png"

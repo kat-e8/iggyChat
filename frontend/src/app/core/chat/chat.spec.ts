@@ -68,6 +68,33 @@ describe('Chat', () => {
     expect(service.connected()).toBe(true);
   });
 
+  it('connect() defaults to ignition scope and sets it immediately', () => {
+    void service.connect();
+    const socket = MockWebSocket.instances[0];
+
+    expect(socket.url).toContain('scope=ignition');
+    expect(service.scope()).toBe('ignition');
+  });
+
+  it('connect(scope) puts the requested scope on the WebSocket URL', () => {
+    void service.connect('generic');
+    const socket = MockWebSocket.instances[0];
+
+    expect(socket.url).toContain('scope=generic');
+    expect(service.scope()).toBe('generic');
+  });
+
+  it('a "session_scope" frame corrects scope to whatever Chat-Bridge actually applied', async () => {
+    const connectPromise = service.connect('generic');
+    const socket = MockWebSocket.instances[0];
+    socket.dispatch('open', {});
+    await connectPromise;
+
+    socket.dispatchMessage({ type: 'session_scope', scope: 'ignition' });
+
+    expect(service.scope()).toBe('ignition');
+  });
+
   it('send() appends a user message and a placeholder assistant message, then sends the prompt', async () => {
     const connectPromise = service.connect();
     MockWebSocket.instances[0].dispatch('open', {});
@@ -126,7 +153,7 @@ describe('Chat', () => {
     expect(service.awaitingReply()).toBe(false);
   });
 
-  it('reset() clears the transcript and reconnects', async () => {
+  it('reset() clears the transcript and disconnects without reconnecting', async () => {
     const connectPromise = service.connect();
     MockWebSocket.instances[0].dispatch('open', {});
     await connectPromise;
@@ -135,7 +162,10 @@ describe('Chat', () => {
     service.reset();
 
     expect(service.messages()).toEqual([]);
-    expect(MockWebSocket.instances.length).toBe(2);
+    expect(service.connected()).toBe(false);
+    // No new socket opened -- scope for the next session is chosen by the
+    // caller (ChatPage's scope picker), not decided here.
+    expect(MockWebSocket.instances.length).toBe(1);
   });
 
   it('send() surfaces a connectionError and adds no messages when the connection fails', async () => {

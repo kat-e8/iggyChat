@@ -1,3 +1,8 @@
+// Which MCP servers a conversation is connected to -- fixed for the whole
+// session (see Chat.connect()). "ignition" is the default; "generic" and
+// "all" are explicit widenings chosen via the scope picker.
+export type Scope = 'ignition' | 'generic' | 'all';
+
 export type ToolCallStatus = 'in-progress' | 'done';
 
 export type ToolCall = {
@@ -32,4 +37,7 @@ export type WireMessage = {
   content?: WireContentBlock[];
   // Only present on "error" frames.
   message?: string;
+  // Only present on a "session_scope" frame -- Chat-Bridge's confirmation of
+  // the scope it actually applied (see app.py's websocket handler).
+  scope?: Scope;
 };

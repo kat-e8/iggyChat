@@ -23,7 +23,7 @@ from pydantic import BaseModel
 
 from . import usage_store
 from .auth import authenticate_user, create_access_token, decode_access_token
-from .claude_service import ChatSession
+from .claude_service import SCOPES, DEFAULT_SCOPE, ChatSession
 from .config import settings
 
 logger = logging.getLogger("chat_bridge")
@@ -91,9 +91,20 @@ async def chat(websocket: WebSocket) -> None:
         await websocket.close(code=1008)
         return
 
+    # Scope is chosen once, by the query string, at connect time -- there is
+    # no in-session message that can change it (see ChatSession's docstring).
+    # Fail safe to the narrowest scope on anything missing or unrecognized;
+    # never fail open to "all".
+    requested_scope = websocket.query_params.get("scope")
+    scope = requested_scope if requested_scope in SCOPES else DEFAULT_SCOPE
+
     await websocket.accept()
+    # Echoed back so the Angular client renders its scope badge from what
+    # Chat-Bridge actually applied, not from whatever it requested -- an
+    # invalid/omitted scope that got defaulted is still shown correctly.
+    await websocket.send_json({"type": "session_scope", "scope": scope})
     try:
-        async with ChatSession() as session:
+        async with ChatSession(scope=scope) as session:
             while True:
                 raw = await websocket.receive_text()
                 payload = json.loads(raw)

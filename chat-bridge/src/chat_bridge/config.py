@@ -31,14 +31,21 @@ class Settings(BaseSettings):
 
     # Second named target ("ignition-dev"), so the model can resolve either
     # alias within a chat turn instead of only ever hitting the fixed prod
-    # target above (see claude_service.py's system_prompt). Deliberately
-    # scoped to Ignition only -- this app has no Docker/Postgres tools wired
-    # in and isn't gaining any here.
+    # target above (see claude_service.py's system_prompt).
     ignition_dev_gateway_url: str = Field(
         default="http://katlegog.dala-cirius.ts.net:8088",
         validation_alias="IGNITION_DEV_GATEWAY_URL",
     )
     ignition_dev_api_key: str = Field(validation_alias="IGNITION_DEV_API_KEY")
+
+    # Generic Gateway (ManPage/api) -- mounts /docker-mcp, /git-mcp,
+    # /postgres-mcp, /coder-commands-mcp. Unlike the shared Ignition MCP
+    # gateway above, this one is not multi-tenant: one key, one reachable
+    # URL, no per-call target override needed. Separate from the Ignition
+    # settings on purpose -- independent blast radii, see
+    # Frontend_Templatize/Two-Gateway-Architecture.pdf in backend/.
+    generic_gateway_url: str = Field(validation_alias="GENERIC_GATEWAY_URL")
+    generic_gateway_api_key: str = Field(validation_alias="GENERIC_GATEWAY_API_KEY")
 
     host: str = Field(default="127.0.0.1", validation_alias="CHAT_BRIDGE_HOST")
     port: int = Field(default=8001, validation_alias="CHAT_BRIDGE_PORT")

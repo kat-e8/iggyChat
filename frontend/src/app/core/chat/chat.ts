@@ -1,5 +1,5 @@
 import { Service, signal } from '@angular/core';
-import { ChatMessage, ToolCall, WireMessage } from './chat.models';
+import { ChatMessage, Scope, ToolCall, WireMessage } from './chat.models';
 
 @Service()
 export class Chat {
@@ -11,14 +11,24 @@ export class Chat {
   readonly connected = signal(false);
   readonly awaitingReply = signal(false);
   readonly connectionError = signal<string | null>(null);
+  // The scope this session is connected with. Set optimistically here when
+  // connect() is called, then corrected (if needed) once Chat-Bridge's
+  // "session_scope" frame confirms what it actually applied -- see
+  // handleFrame(). Fixed for the session: there is no way to change it short
+  // of reset() + connect() again with a different value.
+  readonly scope = signal<Scope>('ignition');
 
-  connect() {
+  // Defaults to whatever scope this session is already using, so a
+  // reconnect-on-send after a dropped connection (see send() below) resumes
+  // in the same scope rather than silently falling back to Ignition.
+  connect(scope: Scope = this.scope()) {
     if (this.socket) {
       return Promise.resolve();
     }
+    this.scope.set(scope);
 
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const socket = new WebSocket(`${protocol}//${location.host}/api/chat`);
+    const socket = new WebSocket(`${protocol}//${location.host}/api/chat?scope=${scope}`);
     this.socket = socket;
 
     return new Promise<void>((resolve, reject) => {
@@ -52,9 +62,12 @@ export class Chat {
     this.connected.set(false);
   }
 
-  // Clears the transcript and opens a fresh connection -- the Chat Bridge
-  // holds conversation state per WebSocket connection (one ClaudeSDKClient
-  // per connection), so a new chat needs a new socket, not just a cleared list.
+  // Clears the transcript and drops the connection -- the Chat Bridge holds
+  // conversation state per WebSocket connection (one ClaudeSDKClient per
+  // connection), so a new chat needs a new socket, not just a cleared list.
+  // Deliberately does NOT reconnect: scope can only be chosen at connect
+  // time, so ChatPage shows the scope picker again and calls connect(scope)
+  // itself once the user picks one.
   reset() {
     // Clear awaitingReply first so the close handler doesn't mistake this
     // deliberate reset for a dropped connection mid-turn.
@@ -63,7 +76,6 @@ export class Chat {
     this.messages.set([]);
     this.connectionError.set(null);
     this.currentAssistantId = null;
-    void this.connect();
   }
 
   async send(prompt: string) {
@@ -101,6 +113,10 @@ export class Chat {
   }
 
   private handleFrame(message: WireMessage) {
+    if (message.type === 'session_scope' && message.scope) {
+      this.scope.set(message.scope);
+      return;
+    }
     if (message.type === 'assistant' || message.type === 'user') {
       this.applyContentBlocks(message.content ?? []);
       return;

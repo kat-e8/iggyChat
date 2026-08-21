@@ -1,0 +1,69 @@
+@use 'theme';
+
+.scope-picker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: min(28rem, 100%);
+}
+
+.scope-picker-label {
+  margin: 0;
+  color: theme.$color-text-muted;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.scope-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.scope-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: theme.$color-input-bg;
+  border: 1px solid theme.$color-border;
+  border-radius: theme.$radius-md;
+  color: theme.$color-text;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: theme.$color-input-bg-focus;
+  }
+
+  &.selected {
+    border-color: theme.$color-primary;
+    box-shadow: 0 0 0 1px theme.$color-primary;
+  }
+}
+
+.scope-option-label {
+  font-weight: 600;
+}
+
+.scope-option-description {
+  font-size: 0.8rem;
+  color: theme.$color-text-muted;
+}
+
+.scope-confirm {
+  padding: 0.625rem 1.5rem;
+  background: theme.$color-accent;
+  border: none;
+  border-radius: theme.$radius-md;
+  color: theme.$color-text;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: theme.$color-accent-hover;
+  }
+}

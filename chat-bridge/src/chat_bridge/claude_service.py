@@ -1,12 +1,16 @@
-"""Wires the Claude Agent SDK to the shared Ignition MCP gateway.
+"""Wires the Claude Agent SDK to two independent gateways:
 
-iggyChat is an Ignition-specific frontend -- it only ever needs the one
-ignition-mcp tool server, and (see Deployment/Phase10_*.pdf) that server
-already runs elsewhere on this host, shared with other tools (e.g. Claude
-Code's own "ignition-gw" MCP config points at this exact URL). There is no
-gateway belonging to this project anymore -- streamable-HTTP straight to
-the shared server, gated by the X-API-Key header held here rather than
-passed to the browser.
+- the shared Ignition MCP gateway (see Deployment/Phase10_*.pdf) -- iggyChat
+  doesn't run one of its own, streamable-HTTP straight to the shared server,
+  gated by the X-API-Key header held here rather than passed to the browser.
+- the Generic Gateway (ManPage/api) -- docker-mcp, git-mcp, postgres-mcp,
+  coder-commands-mcp, behind its own separate key.
+
+Which of these a given ChatSession actually connects to is controlled by
+`scope` -- see SCOPES and build_options() below. Scope is fixed at
+ChatSession construction and can't change mid-session: widening/narrowing
+access means opening a new WebSocket (see app.py), never mutating one that's
+already running.
 """
 
 import asyncio
@@ -34,33 +38,65 @@ logger = logging.getLogger("chat_bridge.claude")
 
 
 def _mcp_servers() -> dict[str, dict[str, Any]]:
+    generic_headers = {"X-API-Key": settings.generic_gateway_api_key}
     return {
         "ignition": {
             "type": "http",
             "url": settings.ignition_mcp_url,
             "headers": {"X-API-Key": settings.ignition_mcp_api_key},
         },
+        "docker": {
+            "type": "http",
+            "url": f"{settings.generic_gateway_url}/docker-mcp/mcp",
+            "headers": generic_headers,
+        },
+        "git": {
+            "type": "http",
+            "url": f"{settings.generic_gateway_url}/git-mcp/mcp",
+            "headers": generic_headers,
+        },
+        "postgres": {
+            "type": "http",
+            "url": f"{settings.generic_gateway_url}/postgres-mcp/mcp",
+            "headers": generic_headers,
+        },
+        "coder_commands": {
+            "type": "http",
+            "url": f"{settings.generic_gateway_url}/coder-commands-mcp/mcp",
+            "headers": generic_headers,
+        },
     }
 
 
-def _system_prompt() -> str:
-    # The shared gateway serves multiple consumers and defaults to a dev
-    # Ignition instance -- every mcp__ignition__* tool call must explicitly
-    # override gateway_url/api_key to reach one of this app's own named
-    # targets, or the call fails with "Failed to reach gateway" against the
-    # wrong instance. Confirmed by testing: omitting the override reproduces
-    # exactly that error. A plain string (not a preset) also means this
-    # session skips the full Claude Code system prompt entirely -- this app
-    # is a narrow Ignition assistant, not a coding agent, and the smaller
-    # prompt is less per-turn token overhead (see Phase7's cost findings).
-    #
-    # Two named targets, mirroring the ignition-dev/ignition-prod aliases
-    # already used elsewhere on this host -- deliberately Ignition-only,
-    # this app has no Docker/Postgres tools to resolve aliases for.
-    return (
-        "You are the Ignition assistant for this app. Answer using the "
-        "mcp__ignition__* tools only. On every call to one of those tools, "
-        "you must explicitly pass gateway_url and api_key -- the tool "
+# Which servers (keys of _mcp_servers()) a session gets, by scope. Ignition is
+# the default/narrowest scope; "generic" and "all" are explicit, user-chosen
+# widenings picked via the Angular scope picker before a session opens (see
+# app.py's websocket handler and frontend chat-scope-picker.ts).
+SCOPES: dict[str, list[str]] = {
+    "ignition": ["ignition"],
+    "generic": ["docker", "git", "postgres", "coder_commands"],
+    "all": ["ignition", "docker", "git", "postgres", "coder_commands"],
+}
+DEFAULT_SCOPE = "ignition"
+
+
+def _system_prompt(servers: dict[str, dict[str, Any]]) -> str:
+    if "ignition" not in servers:
+        # Generic-only session: no Ignition tools are connected, so the
+        # gateway_url/api_key override instructions below would be actively
+        # wrong (there's nothing for them to apply to).
+        return "You are the assistant for this app. Answer using the connected mcp__* tools only."
+
+    # The shared Ignition gateway serves multiple consumers and defaults to a
+    # dev Ignition instance -- every mcp__ignition__* tool call must
+    # explicitly override gateway_url/api_key to reach one of this app's own
+    # named targets, or the call fails with "Failed to reach gateway" against
+    # the wrong instance. Confirmed by testing: omitting the override
+    # reproduces exactly that error. Still required in the "all" scope, since
+    # Ignition tools are connected there too.
+    ignition_override = (
+        "On every call to an mcp__ignition__* tool, you must explicitly "
+        "pass gateway_url and api_key -- the tool "
         "server's own default target is a different, unrelated Ignition "
         "instance. Two named targets are available:\n"
         f'- "ignition-prod": gateway_url="{settings.ignition_target_gateway_url}", '
@@ -89,12 +125,26 @@ def _system_prompt() -> str:
         "success -- retry with the corrected nested structure, and only "
         "report the operation as done once verification passes."
     )
+    if len(servers) == 1:
+        # A plain string (not a preset) means this session skips the full
+        # Claude Code system prompt entirely -- this app is a narrow
+        # Ignition assistant, not a coding agent, and the smaller prompt is
+        # less per-turn token overhead (see Phase7's cost findings). Only
+        # true for the ignition-only scope; "all" below needs the fuller
+        # prompt since it's not narrowly Ignition-only anymore.
+        return f"You are the Ignition assistant for this app. Answer using the mcp__ignition__* tools only. {ignition_override}"
+    return (
+        "You are the assistant for this app, with access to both Ignition "
+        "tools and generic infrastructure tools (docker, git, postgres, "
+        f"coder commands). {ignition_override}"
+    )
 
 
-def build_options() -> ClaudeAgentOptions:
+def build_options(scope: str = DEFAULT_SCOPE) -> ClaudeAgentOptions:
+    servers = {name: spec for name, spec in _mcp_servers().items() if name in SCOPES[scope]}
     return ClaudeAgentOptions(
-        system_prompt=_system_prompt(),
-        mcp_servers=_mcp_servers(),
+        system_prompt=_system_prompt(servers),
+        mcp_servers=servers,
         # tools=[] disables every built-in Claude Code tool (Bash, Read,
         # Write, Edit, Grep, WebFetch, ...) -- without this, a chat user gets
         # those tools too (running against the Bridge's own host/cwd)
@@ -104,14 +154,18 @@ def build_options() -> ClaudeAgentOptions:
         # Claude fell back to Bash/Grep against the Bridge's filesystem.
         tools=[],
         # Ignore any .mcp.json / global MCP config the `claude` subprocess
-        # might otherwise pick up -- only the two servers below are ever
-        # available.
+        # might otherwise pick up -- only the servers selected by scope above
+        # are ever available.
         strict_mcp_config=True,
-        # Auto-approve -- there's no interactive terminal on the other end of
-        # this connection to answer a permission prompt. Per-tool
-        # confirmation UX for high-impact actions is an open question from
-        # mcp_frontend_v3.pdf, not yet resolved.
-        allowed_tools=["mcp__ignition__*"],
+        # Auto-approve every server actually connected for this scope --
+        # there's no interactive terminal on the other end of this
+        # connection to answer a permission prompt. Servers outside
+        # `servers` above have no tools to approve in the first place: this
+        # can only widen *within* what scope already connected, never reach
+        # a server scope left out. Per-tool confirmation UX for high-impact
+        # actions is an open question from mcp_frontend_v3.pdf, not yet
+        # resolved.
+        allowed_tools=[f"mcp__{name}__*" for name in servers],
         model=settings.claude_model,
         # Secondary safety net beneath the cumulative daily cap in app.py --
         # this one's per-session (per WebSocket connection) and enforced by
@@ -151,10 +205,16 @@ def serialize_message(message: Any) -> dict[str, Any]:
 
 
 class ChatSession:
-    """Wraps one ClaudeSDKClient for the lifetime of a single chat WebSocket connection."""
+    """Wraps one ClaudeSDKClient for the lifetime of a single chat WebSocket connection.
 
-    def __init__(self) -> None:
-        self._client = ClaudeSDKClient(options=build_options())
+    scope is fixed at construction and there is no method to change it later --
+    that's deliberate. Changing scope means opening a new WebSocket (and thus a
+    new ChatSession), never mutating one mid-conversation.
+    """
+
+    def __init__(self, scope: str = DEFAULT_SCOPE) -> None:
+        self.scope = scope
+        self._client = ClaudeSDKClient(options=build_options(scope))
 
     async def __aenter__(self) -> "ChatSession":
         await self._client.connect()
