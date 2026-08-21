@@ -45,24 +45,28 @@ def _mcp_servers() -> dict[str, dict[str, Any]]:
             "url": settings.ignition_mcp_url,
             "headers": {"X-API-Key": settings.ignition_mcp_api_key},
         },
+        # ManPage/api's proxy route is "/docker-mcp{path:path}" -> upstream
+        # "/mcp{path}" -- the mount's own bare path (no extra /mcp suffix) is
+        # what maps path="" -> upstream "/mcp". Confirmed directly against
+        # the live gateway: {mount}/mcp is a 404, {mount} alone is a 200.
         "docker": {
             "type": "http",
-            "url": f"{settings.generic_gateway_url}/docker-mcp/mcp",
+            "url": f"{settings.generic_gateway_url}/docker-mcp",
             "headers": generic_headers,
         },
         "git": {
             "type": "http",
-            "url": f"{settings.generic_gateway_url}/git-mcp/mcp",
+            "url": f"{settings.generic_gateway_url}/git-mcp",
             "headers": generic_headers,
         },
         "postgres": {
             "type": "http",
-            "url": f"{settings.generic_gateway_url}/postgres-mcp/mcp",
+            "url": f"{settings.generic_gateway_url}/postgres-mcp",
             "headers": generic_headers,
         },
         "coder_commands": {
             "type": "http",
-            "url": f"{settings.generic_gateway_url}/coder-commands-mcp/mcp",
+            "url": f"{settings.generic_gateway_url}/coder-commands-mcp",
             "headers": generic_headers,
         },
     }
