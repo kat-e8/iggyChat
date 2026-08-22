@@ -2,9 +2,13 @@
 
 .scope-select {
   appearance: none;
-  padding: 0.25rem 1.75rem 0.25rem 0.875rem;
+  padding: 0.25rem 1.875rem 0.25rem 0.875rem;
   border-radius: 999px;
-  font-size: 0.75rem;
+  // Must be >=16px, same reasoning as _form-controls.scss's text-input --
+  // this is a real <select>, focusing it on mobile triggers the same
+  // page-zoom-on-focus as a text input. Was 0.75rem; padding trimmed
+  // slightly to keep the pill close to its old visual size regardless.
+  font-size: 1rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;

@@ -15,7 +15,11 @@
   border: 1px solid transparent;
   border-radius: theme.$radius-md;
   color: theme.$color-text;
-  font-size: 0.9375rem;
+  // Must be >=16px -- iOS Safari (and most Android browsers) auto-zoom the
+  // whole page on focusing any input/select/textarea below that, and the
+  // zoom doesn't reliably reset after blur/submit. Below 1rem here caused
+  // exactly that: page appears "resized", needs a manual pinch to undo.
+  font-size: 1rem;
   font-family: inherit;
 
   &::placeholder {
