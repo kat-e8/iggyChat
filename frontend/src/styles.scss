@@ -7,6 +7,11 @@
 html, body {
   height: 100%;
   margin: 0;
+  // Backstop, not a fix -- the actual overflow causes (flex children not
+  // shrinking below content's min-content width) are fixed at their source
+  // in auth-shell/chat-page/chat-message-list. This just prevents a
+  // horizontal scrollbar/shift from any case that gets missed.
+  overflow-x: hidden;
 }
 
 body {

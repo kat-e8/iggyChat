@@ -8,6 +8,14 @@
   min-height: 100%;
   padding: 3rem 1.5rem;
   flex-wrap: wrap;
+
+  // Below this, brand-pane + auth-card no longer fit side by side and wrap
+  // onto their own lines -- the 6rem gap (meant for the side-by-side gutter)
+  // becomes wasted vertical space between two stacked cards instead.
+  @media (max-width: 56rem) {
+    gap: 2rem;
+    padding: 2rem 1rem;
+  }
 }
 
 .brand-pane {
@@ -16,6 +24,16 @@
   align-items: flex-start;
   gap: 1.25rem;
   max-width: 26rem;
+  // Flex items don't shrink below their content's own min-content width by
+  // default (min-width:auto) -- without this, brand-pane/auth-card ignore
+  // max-width/max-width:100% below and overflow the viewport on narrow
+  // screens instead of actually wrapping/shrinking to fit.
+  min-width: 0;
+
+  @media (max-width: 56rem) {
+    align-items: center;
+    text-align: center;
+  }
 }
 
 .brand-logo {
@@ -31,10 +49,15 @@
   align-items: center;
   width: 27rem;
   max-width: 100%;
+  min-width: 0; // see brand-pane's min-width comment above
   padding: 2.5rem 2.5rem 0;
   background: theme.$color-card-bg;
   border-radius: theme.$radius-lg;
   border: 1px solid theme.$color-border;
+
+  @media (max-width: 26rem) {
+    padding: 1.5rem 1.25rem 0;
+  }
 }
 
 .brand-mark {

@@ -103,6 +103,11 @@
 
 .content {
   flex: 1;
+  // Without this, .content (a flex item in .page) won't shrink below its
+  // content's own min-content width -- on a narrow viewport that pushes
+  // .page wider than the screen instead of the sidebar/content actually
+  // fitting, and everything past the sidebar's edge gets clipped.
+  min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -112,6 +117,10 @@
   display: flex;
   justify-content: center;
   padding: 0.75rem 2rem 0;
+
+  @media (max-width: 30rem) {
+    padding: 0.75rem 1rem 0;
+  }
 }
 
 .connection-error {
@@ -123,6 +132,10 @@
   color: theme.$color-error;
   font-size: 0.875rem;
   text-align: center;
+
+  @media (max-width: 30rem) {
+    margin: 1rem 1rem 0;
+  }
 }
 
 .empty-state {
@@ -133,6 +146,11 @@
   justify-content: center;
   gap: 1.5rem;
   padding: 2rem;
+
+  @media (max-width: 30rem) {
+    padding: 1.25rem;
+    gap: 1rem;
+  }
 }
 
 .empty-state .brand-logo {
@@ -153,6 +171,10 @@
   flex-direction: column;
   overflow: hidden;
   padding: 0 2rem;
+
+  @media (max-width: 30rem) {
+    padding: 0 1rem;
+  }
 }
 
 .transcript {
