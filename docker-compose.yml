@@ -62,7 +62,14 @@ services:
     # clubuntu host (filebrowser) -- published on 8090 instead.
     ports:
       - "8090:80"
-    container_name: rosetta-frontend
+    # Deliberately just "rosetta", not "rosetta-frontend" -- tsdproxy (below)
+    # derives the tailnet hostname it publishes from the container's own
+    # name, so this is also the hostname the frontend answers to on the
+    # tailnet. Image name stays qualified (rosetta-frontend) since that's
+    # registry/build-artifact naming, not the runtime/network identity --
+    # same asymmetry ManPage's gateway service already uses (image "gateway",
+    # container "generic-mcp-gateway").
+    container_name: rosetta
     # tsdproxy picks this container up and fronts it with a Tailscale-network
     # identity, same pattern as ManPage's gateway service -- gives it a
     # tailnet hostname/HTTPS endpoint gated by tailnet auth, alongside (not
