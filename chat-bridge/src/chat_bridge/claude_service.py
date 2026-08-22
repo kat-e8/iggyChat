@@ -1,16 +1,19 @@
-"""Wires the Claude Agent SDK to two independent gateways:
+"""Wires the Claude Agent SDK to three independent gateways:
 
 - the shared Ignition MCP gateway (see Deployment/Phase10_*.pdf) -- Rosetta
   doesn't run one of its own, streamable-HTTP straight to the shared server,
   gated by the X-API-Key header held here rather than passed to the browser.
 - the Generic Gateway (ManPage/api) -- docker-mcp, git-mcp, postgres-mcp,
   coder-commands-mcp, behind its own separate key.
+- the Canary Gateway (Canary Labs Historian MCP) -- a single unauthenticated
+  endpoint, kept in its own standalone scope rather than folded into
+  "generic" or "all" (see SCOPES below).
 
 Which of these a given ChatSession actually connects to is controlled by
-`scope` -- see SCOPES and build_options() below. Scope is fixed at
-ChatSession construction and can't change mid-session: widening/narrowing
-access means opening a new WebSocket (see app.py), never mutating one that's
-already running.
+`scope` -- see SCOPES and build_options() below. A session's scope can
+change mid-session via ChatSession.switch_scope(), which reconnects the SDK
+client with a different mcp_servers set while resuming the same underlying
+Claude conversation (see app.py's websocket handler).
 """
 
 import asyncio
@@ -69,17 +72,29 @@ def _mcp_servers() -> dict[str, dict[str, Any]]:
             "url": f"{settings.generic_gateway_url}/coder-commands-mcp",
             "headers": generic_headers,
         },
+        # Canary Gateway -- no headers: this endpoint has no API-key auth at
+        # all (see config.py's canary_gateway_url comment).
+        "canary": {
+            "type": "http",
+            "url": settings.canary_gateway_url,
+        },
     }
 
 
 # Which servers (keys of _mcp_servers()) a session gets, by scope. Ignition is
 # the default/narrowest scope; "generic" and "all" are explicit, user-chosen
-# widenings picked via the Angular scope picker before a session opens (see
-# app.py's websocket handler and frontend chat-scope-picker.ts).
+# widenings, and "canary" is a fully separate scope with its own weaker trust
+# model. Selectable at session start or mid-session via the Angular scope
+# dropdown (see app.py's websocket handler and frontend chat-scope-select.ts).
 SCOPES: dict[str, list[str]] = {
     "ignition": ["ignition"],
     "generic": ["docker", "git", "postgres", "coder_commands"],
     "all": ["ignition", "docker", "git", "postgres", "coder_commands"],
+    # Standalone on purpose, not folded into "all" -- canary-gateway has no
+    # API-key auth at all (see config.py), a weaker trust model than the
+    # other two gateways. Keeping it its own scope means "all" never quietly
+    # starts including an unauthenticated endpoint.
+    "canary": ["canary"],
 }
 DEFAULT_SCOPE = "ignition"
 

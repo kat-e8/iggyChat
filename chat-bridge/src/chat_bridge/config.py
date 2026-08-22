@@ -47,6 +47,18 @@ class Settings(BaseSettings):
     generic_gateway_url: str = Field(validation_alias="GENERIC_GATEWAY_URL")
     generic_gateway_api_key: str = Field(validation_alias="GENERIC_GATEWAY_API_KEY")
 
+    # Canary Gateway (Canary Labs Historian MCP, from the canary-gateway
+    # project) -- a single unauthenticated MCP endpoint, unlike both gateways
+    # above: no X-API-Key at all, trusting tailnet reachability alone as its
+    # only access control. Deliberately its own scope, not folded into
+    # "generic" or "all" (see claude_service.py's SCOPES) -- keeps this
+    # different trust model isolated rather than quietly widening what "all"
+    # means.
+    canary_gateway_url: str = Field(
+        default="http://clubuntu.dala-cirius.ts.net:7200/canary/mcp",
+        validation_alias="CANARY_GATEWAY_URL",
+    )
+
     host: str = Field(default="127.0.0.1", validation_alias="CHAT_BRIDGE_HOST")
     port: int = Field(default=8001, validation_alias="CHAT_BRIDGE_PORT")
 

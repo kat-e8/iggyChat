@@ -46,6 +46,16 @@
     color: theme.$color-accent-hover;
   }
 
+  // Canary talks to an unauthenticated gateway (no X-API-Key, tailnet
+  // reachability is its only access control) -- a distinct amber/caution
+  // color signals that different, weaker trust model at a glance, rather
+  // than reusing the teal "widened access" accent above.
+  &.scope-canary {
+    background-color: rgba(217, 143, 15, 0.14);
+    border-color: #d98f0f;
+    color: #b8760a;
+  }
+
   option {
     background: theme.$color-card-bg;
     color: theme.$color-text;
