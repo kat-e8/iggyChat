@@ -56,6 +56,15 @@
     color: #b8760a;
   }
 
+  // Training talks to an unrelated domain (companies/courses/students, not
+  // infra tools) -- a distinct blue keeps it visually separate from the
+  // teal "widened infra access" accent and the amber "weaker trust" one.
+  &.scope-trainer {
+    background-color: rgba(59, 91, 219, 0.12);
+    border-color: #3b5bdb;
+    color: #2b3f9e;
+  }
+
   option {
     background: theme.$color-card-bg;
     color: theme.$color-text;

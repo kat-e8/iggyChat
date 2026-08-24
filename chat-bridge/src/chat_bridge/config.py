@@ -59,6 +59,19 @@ class Settings(BaseSettings):
         validation_alias="CANARY_GATEWAY_URL",
     )
 
+    # Trainer Gateway (trainer-mcp-gateway) -- companies/courses/students
+    # app_api wrapped as MCP tools. Standalone container on clubuntu, same
+    # deployment shape as canary-gateway above (own container, own port),
+    # but authenticated like Generic rather than open like Canary: a single
+    # bearer token, checked by the gateway's own BearerTokenMiddleware, sent
+    # as `Authorization: Bearer <token>` rather than X-API-Key (see
+    # claude_service.py's _mcp_servers()).
+    trainer_gateway_url: str = Field(
+        default="http://clubuntu.dala-cirius.ts.net:7201/trainer/mcp",
+        validation_alias="TRAINER_GATEWAY_URL",
+    )
+    trainer_gateway_api_key: str = Field(validation_alias="TRAINER_GATEWAY_API_KEY")
+
     host: str = Field(default="127.0.0.1", validation_alias="CHAT_BRIDGE_HOST")
     port: int = Field(default=8001, validation_alias="CHAT_BRIDGE_PORT")
 
