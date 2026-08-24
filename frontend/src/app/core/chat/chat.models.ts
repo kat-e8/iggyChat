@@ -1,9 +1,9 @@
 // Which MCP servers a conversation is connected to -- switchable mid-session
 // (see Chat.connect()). "ignition" is the default; "generic" and "all" are
-// explicit widenings, and "canary" is a fully separate scope (the canary
-// gateway has no API-key auth, so it's never folded into "all"). All chosen
-// via the scope dropdown.
-export type Scope = 'ignition' | 'generic' | 'all' | 'canary';
+// explicit widenings, and "canary"/"trainer" are fully separate scopes (the
+// canary gateway has no API-key auth, and trainer is an unrelated domain --
+// neither is folded into "all"). All chosen via the scope dropdown.
+export type Scope = 'ignition' | 'generic' | 'all' | 'canary' | 'trainer';
 
 export type ToolCallStatus = 'in-progress' | 'done';
 

@@ -4,13 +4,15 @@ import { Scope } from '../../core/chat/chat.models';
 type ScopeOption = { value: Scope; label: string };
 
 // Ignition is the implicit default; Generic and All are explicit widenings.
-// Canary is a fully separate scope (unauthenticated gateway, never part of
-// "all"). Same options whether picked before the first message or mid-session.
+// Canary and Training are fully separate scopes (Canary: unauthenticated
+// gateway; Training: unrelated domain) -- neither is part of "all". Same
+// options whether picked before the first message or mid-session.
 const OPTIONS: ScopeOption[] = [
   { value: 'ignition', label: 'Ignition' },
   { value: 'generic', label: 'Generic' },
   { value: 'all', label: 'All' },
   { value: 'canary', label: 'Canary' },
+  { value: 'trainer', label: 'Training' },
 ];
 
 @Component({
