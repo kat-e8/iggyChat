@@ -1,4 +1,4 @@
-"""Wires the Claude Agent SDK to four independent gateways:
+"""Wires the Claude Agent SDK to five independent gateways:
 
 - the shared Ignition MCP gateway (see Deployment/Phase10_*.pdf) -- Rosetta
   doesn't run one of its own, streamable-HTTP straight to the shared server,
@@ -11,6 +11,9 @@
 - the Trainer Gateway (trainer-mcp-gateway) -- companies/courses/students
   app_api, behind its own bearer token. Standalone container like Canary,
   but authenticated like Generic (see SCOPES below).
+- the Zoho Gateway (zoho-desk-mcp) -- Zoho Desk tickets/contacts/agents.
+  Standalone container like Trainer, but unauthenticated like Canary: no
+  caller-facing key at all (see SCOPES below).
 
 Which of these a given ChatSession actually connects to is controlled by
 `scope` -- see SCOPES and build_options() below. A session's scope can
@@ -90,15 +93,22 @@ def _mcp_servers() -> dict[str, dict[str, Any]]:
             "url": settings.trainer_gateway_url,
             "headers": {"Authorization": f"Bearer {settings.trainer_gateway_api_key}"},
         },
+        # Zoho Gateway -- no headers: zoho-desk-mcp has no caller-facing auth
+        # at all (see config.py's zoho_gateway_url comment). It handles its
+        # own OAuth to the Zoho Desk API internally, unrelated to this call.
+        "tickets": {
+            "type": "http",
+            "url": settings.zoho_gateway_url,
+        },
     }
 
 
 # Which servers (keys of _mcp_servers()) a session gets, by scope. Ignition is
 # the default/narrowest scope; "generic" and "all" are explicit, user-chosen
-# widenings, and "canary"/"trainer" are fully separate scopes each with their
-# own distinct gateway. Selectable at session start or mid-session via the
-# Angular scope dropdown (see app.py's websocket handler and frontend
-# chat-scope-select.ts).
+# widenings, and "canary"/"trainer"/"tickets" are fully separate scopes each
+# with their own distinct gateway. Selectable at session start or
+# mid-session via the Angular scope dropdown (see app.py's websocket
+# handler and frontend chat-scope-select.ts).
 SCOPES: dict[str, list[str]] = {
     "ignition": ["ignition"],
     "generic": ["docker", "git", "postgres", "coder_commands"],
@@ -114,6 +124,11 @@ SCOPES: dict[str, list[str]] = {
     # connected to" rather than "every generic infra tool" -- keeping it
     # separate matches how canary already isn't in "all" either.
     "trainer": ["trainer"],
+    # Standalone for both reasons at once: an unrelated domain (Zoho Desk
+    # tickets/contacts, not infra tools) *and* an unauthenticated gateway
+    # (like Canary) -- either reason alone would already keep this out of
+    # "all".
+    "tickets": ["tickets"],
 }
 DEFAULT_SCOPE = "ignition"
 
