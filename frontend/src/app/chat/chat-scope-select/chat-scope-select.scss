@@ -65,6 +65,15 @@
     color: #2b3f9e;
   }
 
+  // Tickets shares both reasons the two colors above exist -- an
+  // unauthenticated gateway (like Canary) *and* an unrelated domain (like
+  // Training) -- so it gets its own third color rather than reusing either.
+  &.scope-tickets {
+    background-color: rgba(47, 158, 68, 0.12);
+    border-color: #2f9e44;
+    color: #22792f;
+  }
+
   option {
     background: theme.$color-card-bg;
     color: theme.$color-text;

@@ -72,6 +72,20 @@ class Settings(BaseSettings):
     )
     trainer_gateway_api_key: str = Field(validation_alias="TRAINER_GATEWAY_API_KEY")
 
+    # Zoho Gateway (zoho-desk-mcp) -- Zoho Desk tickets/contacts/agents
+    # wrapped as MCP tools. Standalone container on clubuntu (its own image,
+    # own port), same deployment shape as Canary and Trainer above. Trust
+    # model matches Canary, not Trainer: the server itself has no
+    # caller-facing auth (no X-API-Key, no Authorization header check) --
+    # it authenticates to Zoho's API internally via its own OAuth
+    # credentials, but trusts tailnet reachability alone for callers. Its
+    # own mount is bare "/mcp" (not "/tickets/mcp" or similar), unlike
+    # Trainer/Canary which are reverse-proxied under a path prefix.
+    zoho_gateway_url: str = Field(
+        default="http://clubuntu.dala-cirius.ts.net:3110/mcp",
+        validation_alias="ZOHO_GATEWAY_URL",
+    )
+
     host: str = Field(default="127.0.0.1", validation_alias="CHAT_BRIDGE_HOST")
     port: int = Field(default=8001, validation_alias="CHAT_BRIDGE_PORT")
 
