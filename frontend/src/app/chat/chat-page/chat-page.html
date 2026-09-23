@@ -38,6 +38,7 @@
   <main class="content">
     <div class="scope-bar">
       <chat-scope-select [scope]="chat.scope()" (scopeChosen)="onScopeChosen($event)" />
+      <alias-panel />
     </div>
 
     @if (chat.connectionError(); as connectionError) {

@@ -77,15 +77,15 @@ describe('Chat', () => {
   });
 
   it('connect(scope) puts the requested scope on the WebSocket URL', () => {
-    void service.connect('generic');
+    void service.connect('canary');
     const socket = MockWebSocket.instances[0];
 
-    expect(socket.url).toContain('scope=generic');
-    expect(service.scope()).toBe('generic');
+    expect(socket.url).toContain('scope=canary');
+    expect(service.scope()).toBe('canary');
   });
 
   it('a "session_scope" frame corrects scope to whatever Chat-Bridge actually applied', async () => {
-    const connectPromise = service.connect('generic');
+    const connectPromise = service.connect('canary');
     const socket = MockWebSocket.instances[0];
     socket.dispatch('open', {});
     await connectPromise;
@@ -96,10 +96,10 @@ describe('Chat', () => {
   });
 
   it('changeScope() before any connection just connects with that scope', () => {
-    service.changeScope('generic');
+    service.changeScope('canary');
     const socket = MockWebSocket.instances[0];
 
-    expect(socket.url).toContain('scope=generic');
+    expect(socket.url).toContain('scope=canary');
   });
 
   it('changeScope() while connected sends a change_scope message and waits for confirmation', async () => {
@@ -108,16 +108,16 @@ describe('Chat', () => {
     socket.dispatch('open', {});
     await connectPromise;
 
-    service.changeScope('generic');
+    service.changeScope('canary');
 
-    expect(socket.sent).toContain(JSON.stringify({ action: 'change_scope', scope: 'generic' }));
+    expect(socket.sent).toContain(JSON.stringify({ action: 'change_scope', scope: 'canary' }));
     // Not applied optimistically -- still the pre-switch value until confirmed.
     expect(service.scope()).toBe('ignition');
     // No second socket opened -- the existing connection is reused.
     expect(MockWebSocket.instances.length).toBe(1);
 
-    socket.dispatchMessage({ type: 'session_scope', scope: 'generic' });
-    expect(service.scope()).toBe('generic');
+    socket.dispatchMessage({ type: 'session_scope', scope: 'canary' });
+    expect(service.scope()).toBe('canary');
   });
 
   it('send() appends a user message and a placeholder assistant message, then sends the prompt', async () => {

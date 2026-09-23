@@ -21,7 +21,7 @@ services:
       # app in before running `docker compose up`.
       context: ./chat-bridge
       dockerfile: Dockerfile
-    image: clubuntu.dala-cirius.ts.net:5000/rosetta-chat-bridge:${TAG:-dev}
+    image: registry.katlego.work/rosetta-chat-bridge:${TAG:-dev}
     # The only service this compose file publishes to the host -- the single
     # public entry point the browser talks to.
     ports:
@@ -31,9 +31,6 @@ services:
     container_name: rosetta-chat-bridge
     environment:
       - CHAT_BRIDGE_HOST=0.0.0.0
-      # Not this project's own gateway -- a shared MCP gateway already
-      # running on this host for other tools. See Deployment/Phase10_*.pdf.
-      - IGNITION_MCP_URL=http://clubuntu.dala-cirius.ts.net:8000/ignition/mcp
       # SQLite usage-tracking DB lives on the named volume below, not the
       # container's own writable layer -- must survive `docker compose up`
       # recreating the container on every deploy, since its whole purpose is
@@ -43,6 +40,8 @@ services:
       # Deployment/Phase8_*.pdf) must survive redeploys too, on the same
       # persistent volume as usage.db.
       - CHAT_BRIDGE_USERS_DB_PATH=/data/users.db
+      # And the shared aliases (URLs + API keys) users create in the app.
+      - CHAT_BRIDGE_ALIASES_DB_PATH=/data/aliases.db
     volumes:
       - chat-bridge-data:/data
  #   restart: unless-stopped
@@ -54,7 +53,7 @@ services:
       # (see frontend/nginx.conf).
       context: ./frontend
       dockerfile: Dockerfile
-    image: clubuntu.dala-cirius.ts.net:5000/rosetta-frontend:${TAG:-dev}
+    image: registry.katlego.work/rosetta-frontend:${TAG:-dev}
     # Second host-published service, alongside chat-bridge -- the browser
     # talks to this nginx for the app shell and static assets; nginx forwards
     # /api/* to chat-bridge:8001 via compose service-name DNS.

@@ -31,47 +31,20 @@
     outline-offset: 2px;
   }
 
-  // Ignition (the narrow default) reads as calm/neutral; Generic and All
-  // (the explicit widenings, with a higher blast radius) use the same
-  // accent as other elevated actions in this app (e.g. logout).
+  // Ignition (the default) reads as calm/neutral.
   &.scope-ignition {
     background-color: theme.$color-input-bg;
     color: theme.$color-text-muted;
   }
 
-  &.scope-generic,
-  &.scope-all {
-    background-color: rgba(236, 18, 100, 0.12);
-    border-color: theme.$color-accent;
-    color: theme.$color-accent-hover;
-  }
-
-  // Canary talks to an unauthenticated gateway (no X-API-Key, tailnet
+  // Canary talks to an unauthenticated gateway (no X-API-Key, network
   // reachability is its only access control) -- a distinct amber/caution
-  // color signals that different, weaker trust model at a glance, rather
-  // than reusing the teal "widened access" accent above.
+  // color signals that different, weaker trust model at a glance, and makes
+  // it obvious which system the conversation is pointed at.
   &.scope-canary {
     background-color: rgba(217, 143, 15, 0.14);
     border-color: #d98f0f;
     color: #b8760a;
-  }
-
-  // Training talks to an unrelated domain (companies/courses/students, not
-  // infra tools) -- a distinct blue keeps it visually separate from the
-  // teal "widened infra access" accent and the amber "weaker trust" one.
-  &.scope-trainer {
-    background-color: rgba(59, 91, 219, 0.12);
-    border-color: #3b5bdb;
-    color: #2b3f9e;
-  }
-
-  // Tickets shares both reasons the two colors above exist -- an
-  // unauthenticated gateway (like Canary) *and* an unrelated domain (like
-  // Training) -- so it gets its own third color rather than reusing either.
-  &.scope-tickets {
-    background-color: rgba(47, 158, 68, 0.12);
-    border-color: #2f9e44;
-    color: #22792f;
   }
 
   option {

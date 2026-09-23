@@ -14,14 +14,15 @@ has. See Deployment/Phase8_*.pdf.
 import asyncio
 import json
 import logging
-from typing import Any
+from typing import Any, Literal
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
-from . import usage_store
+from . import alias_store, usage_store
 from .auth import authenticate_user, create_access_token, decode_access_token
 from .claude_service import SCOPES, DEFAULT_SCOPE, ChatSession
 from .config import settings
@@ -76,6 +77,75 @@ async def usage(request: Request) -> dict[str, Any]:
     return await asyncio.to_thread(usage_store.summary)
 
 
+class AliasCreate(BaseModel):
+    # The name travels through the model as a tool argument, so keep it to a
+    # plain, unambiguous shape: nothing that could read as a URL or as the
+    # Canary gateway's "inline:" spec.
+    name: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,62}$")
+    system: Literal["ignition", "canary"]
+    url: str = Field(pattern=r"^https?://[^\s/]+(/[^\s]*)?$")
+    api_key: str = Field(min_length=1)
+    # Canary only: the Historian a write goes to. Reads don't need it.
+    historian: str | None = None
+
+    @field_validator("url")
+    @classmethod
+    def _no_trailing_slash(cls, v: str) -> str:
+        return v.rstrip("/")
+
+
+def _check_canary_url(body: AliasCreate) -> None:
+    # A Canary alias is the Historian's base URL only -- the read/write API
+    # ports and paths are added per call (see claude_service._resolve_alias).
+    parts = urlsplit(body.url)
+    if body.system == "canary" and (parts.port is not None or parts.path):
+        raise HTTPException(
+            status_code=422,
+            detail="A Canary alias URL is the Historian's base URL only, e.g. https://canary-stage.stage.katlego.work "
+            "(no port or path -- the API ports are added automatically).",
+        )
+
+
+# Aliases are shared by every signed-in user. Keys are write-only over HTTP:
+# they come in on POST and are never returned (alias_store.list_aliases).
+@app.get("/api/aliases")
+async def list_aliases(request: Request) -> list[dict[str, Any]]:
+    _require_auth(request)
+    return await asyncio.to_thread(alias_store.list_aliases)
+
+
+@app.post("/api/aliases", status_code=201)
+async def create_alias(body: AliasCreate, request: Request) -> dict[str, str]:
+    email = _require_auth(request)
+    _check_canary_url(body)
+    try:
+        await asyncio.to_thread(
+            alias_store.add_alias, body.name, body.system, body.url, body.api_key, body.historian, email
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    logger.info("Alias %s (%s -> %s) created by %s", body.name, body.system, body.url, email)
+    return {"name": body.name}
+
+
+@app.delete("/api/aliases/{name}", status_code=204)
+async def delete_alias(name: str, request: Request) -> Response:
+    email = _require_auth(request)
+    if not await asyncio.to_thread(alias_store.remove_alias, name):
+        raise HTTPException(status_code=404, detail=f"No such alias: {name}")
+    logger.info("Alias %s deleted by %s", name, email)
+    return Response(status_code=204)
+
+
+@app.put("/api/aliases/{name}/default", status_code=204)
+async def make_default_alias(name: str, request: Request) -> Response:
+    email = _require_auth(request)
+    if not await asyncio.to_thread(alias_store.set_default, name):
+        raise HTTPException(status_code=404, detail=f"No such alias: {name}")
+    logger.info("Alias %s made default by %s", name, email)
+    return Response(status_code=204)
+
+
 @app.post("/api/auth/login")
 async def login(body: AuthRequest, response: Response) -> TokenResponse:
     if not authenticate_user(body.email, body.password):
@@ -92,8 +162,8 @@ async def chat(websocket: WebSocket) -> None:
         return
 
     # Initial scope, from the query string at connect time. Fail safe to the
-    # narrowest scope on anything missing or unrecognized; never fail open to
-    # "all". Can change later, mid-connection, via a "change_scope" message
+    # default scope on anything missing or unrecognized, never to a scope the
+    # user didn't pick. Can change later, mid-connection, via a "change_scope" message
     # below -- the WebSocket itself stays open across that, only the
     # underlying ChatSession's connected servers change (see switch_scope).
     requested_scope = websocket.query_params.get("scope")

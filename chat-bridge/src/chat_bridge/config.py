@@ -7,83 +7,39 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    # Rosetta is an Ignition frontend -- it talks to the pre-existing,
-    # shared MCP gateway that already serves /ignition/mcp for other tools
-    # on this host (Claude Code's own "ignition-gw" MCP server config points
-    # at the same URL), rather than running a duplicate gateway of its own.
-    # See Deployment/Phase10_*.pdf.
+    # Rosetta doesn't run an MCP gateway of its own -- it talks to the
+    # mcp-gateway container deployed alongside it (infra repo,
+    # services/apps/mcp-gateway), reached by container name on the shared
+    # "edge" network. See Deployment/Phase10_*.pdf.
     ignition_mcp_url: str = Field(
-        default="http://clubuntu.dala-cirius.ts.net:8000/ignition/mcp",
+        default="http://mcp-gateway:8000/ignition/mcp",
         validation_alias="IGNITION_MCP_URL",
     )
     ignition_mcp_api_key: str = Field(validation_alias="IGNITION_MCP_API_KEY")
 
-    # The shared gateway is multi-tenant -- its own baked-in default Ignition
-    # target is a dev instance, not this app's production one. Every
-    # mcp__ignition__* call must pass these as explicit gateway_url/api_key
-    # overrides (see claude_service.py's system_prompt) rather than relying
-    # on the gateway's default.
-    ignition_target_gateway_url: str = Field(
-        default="http://clubuntu.dala-cirius.ts.net:9011",
-        validation_alias="IGNITION_TARGET_GATEWAY_URL",
+    # Which Ignition gateway or Canary Historian a tool call reaches is not
+    # configured here: users create named aliases at runtime (alias_store.py,
+    # via the Aliases form), stored on the same volume as users.db.
+    aliases_db_path: Path = Field(
+        default=Path("chat_bridge_aliases.db"), validation_alias="CHAT_BRIDGE_ALIASES_DB_PATH"
     )
-    ignition_target_api_key: str = Field(validation_alias="IGNITION_TARGET_API_KEY")
 
-    # Second named target ("ignition-dev"), so the model can resolve either
-    # alias within a chat turn instead of only ever hitting the fixed prod
-    # target above (see claude_service.py's system_prompt).
-    ignition_dev_gateway_url: str = Field(
-        default="http://katlegog.dala-cirius.ts.net:8088",
-        validation_alias="IGNITION_DEV_GATEWAY_URL",
-    )
-    ignition_dev_api_key: str = Field(validation_alias="IGNITION_DEV_API_KEY")
-
-    # Generic Gateway (ManPage/api) -- mounts /docker-mcp, /git-mcp,
-    # /postgres-mcp, /coder-commands-mcp. Unlike the shared Ignition MCP
-    # gateway above, this one is not multi-tenant: one key, one reachable
-    # URL, no per-call target override needed. Separate from the Ignition
-    # settings on purpose -- independent blast radii, see
-    # Frontend_Templatize/Two-Gateway-Architecture.pdf in backend/.
-    generic_gateway_url: str = Field(validation_alias="GENERIC_GATEWAY_URL")
-    generic_gateway_api_key: str = Field(validation_alias="GENERIC_GATEWAY_API_KEY")
+    # Canary's standard API ports. A Canary alias stores only the Historian's
+    # base URL (https://host); the read and write API URLs are built from it
+    # with these, the same shape as the gateway's connections.yaml entries.
+    canary_read_port: int = Field(default=55236, validation_alias="CANARY_READ_PORT")
+    canary_write_port: int = Field(default=55293, validation_alias="CANARY_WRITE_PORT")
 
     # Canary Gateway (Canary Labs Historian MCP, from the canary-gateway
-    # project) -- a single unauthenticated MCP endpoint, unlike both gateways
-    # above: no X-API-Key at all, trusting tailnet reachability alone as its
-    # only access control. Deliberately its own scope, not folded into
-    # "generic" or "all" (see claude_service.py's SCOPES) -- keeps this
-    # different trust model isolated rather than quietly widening what "all"
-    # means.
+    # project) -- a single unauthenticated MCP endpoint, unlike the Ignition
+    # gateway above: no X-API-Key at all, trusting network reachability alone
+    # as its only access control. Its own scope, never combined with Ignition
+    # (see claude_service.py's SCOPES). Default is the canary-mcp-gateway
+    # container on the same "edge" network (infra repo,
+    # services/apps/canary-mcp-gateway).
     canary_gateway_url: str = Field(
-        default="http://clubuntu.dala-cirius.ts.net:7200/canary/mcp",
+        default="http://canary-mcp-gateway:8000/canary/mcp",
         validation_alias="CANARY_GATEWAY_URL",
-    )
-
-    # Trainer Gateway (trainer-mcp-gateway) -- companies/courses/students
-    # app_api wrapped as MCP tools. Standalone container on clubuntu, same
-    # deployment shape as canary-gateway above (own container, own port),
-    # but authenticated like Generic rather than open like Canary: a single
-    # bearer token, checked by the gateway's own BearerTokenMiddleware, sent
-    # as `Authorization: Bearer <token>` rather than X-API-Key (see
-    # claude_service.py's _mcp_servers()).
-    trainer_gateway_url: str = Field(
-        default="http://clubuntu.dala-cirius.ts.net:7201/trainer/mcp",
-        validation_alias="TRAINER_GATEWAY_URL",
-    )
-    trainer_gateway_api_key: str = Field(validation_alias="TRAINER_GATEWAY_API_KEY")
-
-    # Zoho Gateway (zoho-desk-mcp) -- Zoho Desk tickets/contacts/agents
-    # wrapped as MCP tools. Standalone container on clubuntu (its own image,
-    # own port), same deployment shape as Canary and Trainer above. Trust
-    # model matches Canary, not Trainer: the server itself has no
-    # caller-facing auth (no X-API-Key, no Authorization header check) --
-    # it authenticates to Zoho's API internally via its own OAuth
-    # credentials, but trusts tailnet reachability alone for callers. Its
-    # own mount is bare "/mcp" (not "/tickets/mcp" or similar), unlike
-    # Trainer/Canary which are reverse-proxied under a path prefix.
-    zoho_gateway_url: str = Field(
-        default="http://clubuntu.dala-cirius.ts.net:3110/mcp",
-        validation_alias="ZOHO_GATEWAY_URL",
     )
 
     host: str = Field(default="127.0.0.1", validation_alias="CHAT_BRIDGE_HOST")

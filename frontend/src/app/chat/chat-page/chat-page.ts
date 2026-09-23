@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { Auth } from '../../core/auth/auth';
 import { Chat } from '../../core/chat/chat';
 import { Scope } from '../../core/chat/chat.models';
+import { AliasPanel } from '../alias-panel/alias-panel';
 import { ChatInput } from '../chat-input/chat-input';
 import { ChatMessageList } from '../chat-message-list/chat-message-list';
 import { ChatScopeSelect } from '../chat-scope-select/chat-scope-select';
@@ -11,7 +12,7 @@ import { ChatStatus } from '../chat-status/chat-status';
 
 @Component({
   selector: 'chat-page',
-  imports: [ChatInput, ChatMessageList, ChatScopeSelect, ChatStatus, NgOptimizedImage],
+  imports: [AliasPanel, ChatInput, ChatMessageList, ChatScopeSelect, ChatStatus, NgOptimizedImage],
   templateUrl: './chat-page.html',
   styleUrl: './chat-page.scss',
 })
