@@ -3,10 +3,12 @@
 - the shared Ignition MCP gateway (see Deployment/Phase10_*.pdf) -- Rosetta
   doesn't run one of its own, streamable-HTTP straight to the shared server,
   gated by the X-API-Key header held here rather than passed to the browser.
-  Which Ignition gateway it reaches is chosen per call, from the named
-  targets in config (see _system_prompt).
 - the Canary Gateway (Canary Labs Historian MCP) -- a single unauthenticated
   endpoint.
+
+Which Ignition gateway or Canary Historian a call reaches is chosen per call
+by alias name (alias_store.py); _resolve_alias swaps the name for the real
+URL and key just before the call runs, so the model never handles a key.
 
 Each is its own scope and a session only ever connects one of them. Ignition
 and Canary both have "tags", so keeping them apart is what stops an Ignition
@@ -20,6 +22,7 @@ Claude conversation (see app.py's websocket handler).
 """
 
 import asyncio
+import json
 import logging
 from collections.abc import AsyncIterator
 from dataclasses import asdict, is_dataclass
@@ -29,6 +32,7 @@ from claude_agent_sdk import (
     AssistantMessage,
     ClaudeAgentOptions,
     ClaudeSDKClient,
+    HookMatcher,
     ResultMessage,
     TextBlock,
     ThinkingBlock,
@@ -37,7 +41,7 @@ from claude_agent_sdk import (
     UserMessage,
 )
 
-from . import usage_store
+from . import alias_store, usage_store
 from .config import settings
 
 logger = logging.getLogger("chat_bridge.claude")
@@ -91,46 +95,144 @@ _CANARY_ROLE = (
 )
 
 
-def _ignition_targets() -> str:
-    # The shared Ignition MCP gateway is multi-tenant and its own default
-    # target is an unrelated instance -- every mcp__ignition__* call must pass
-    # gateway_url/api_key explicitly or it fails with "Failed to reach
-    # gateway" against the wrong one. Confirmed by testing: omitting the
-    # override reproduces exactly that error. The names, URLs and default all
-    # come from config (IGNITION_TARGETS / IGNITION_DEFAULT_TARGET).
-    listed = "\n".join(
-        f'- "{name}": gateway_url="{target.gateway_url}", api_key="{target.api_key}"'
-        for name, target in settings.ignition_targets.items()
+# Which tool argument carries the alias, per system. The shared Ignition MCP
+# gateway is multi-tenant and its own default target is an unrelated
+# instance, so every mcp__ignition__* call must name a gateway; Canary tools
+# take an optional `connection`.
+_ALIAS_ARG = {"ignition": "gateway_url", "canary": "connection"}
+_THING = {"ignition": "Ignition gateway", "canary": "Canary Historian"}
+_A_THING = {"ignition": "an Ignition gateway", "canary": "a Canary Historian"}
+
+
+def _alias_instructions(system: str) -> str:
+    # Built per session from the shared alias store, so the list is current
+    # as of the conversation's start. Aliases created later still work: the
+    # hook below resolves names when the call runs, not from this list.
+    aliases = [a for a in alias_store.list_aliases() if a["system"] == system]
+    arg, thing = _ALIAS_ARG[system], _THING[system]
+    # Never let "none/not listed" be the model's final answer: the list is a
+    # snapshot from when the session was built, and a conversation outlives
+    # it (switching scope resumes the same conversation, history included).
+    # Only the hook knows the live store, so the model must always ask it.
+    always_try = (
+        "What this prompt says about which aliases exist is a snapshot from "
+        "when the conversation started, and users add aliases at any time, "
+        "so it -- and anything said earlier in this conversation about which "
+        "aliases exist -- may be out of date. Whenever the user names an "
+        "alias, call the tool with it before saying it doesn't exist; only "
+        "the tool's answer is current."
+    )
+    if not aliases:
+        return (
+            f"Every mcp__{system}__* tool call targets {_A_THING[system]} named by an alias, "
+            f'passed as {arg} (e.g. {arg}="my-alias"); the app puts in the real '
+            f"address and key. No {thing} alias existed when this conversation "
+            f"started. {always_try} If the user hasn't named one and the tool "
+            "says none exist, tell them to add one with the Aliases button "
+            "above the chat."
+        )
+    listed = ", ".join(f'"{a["name"]}"' + (" (default)" if a["is_default"] else "") for a in aliases)
+    default = next((a["name"] for a in aliases if a["is_default"]), aliases[0]["name"])
+    how = (
+        f'Pass the alias name itself as {arg} (e.g. {arg}="{default}") and nothing else'
+        + (" -- leave api_key out" if system == "ignition" else "")
+        + ". The app puts in the real address and key just before the call "
+        "runs; you never need them, and must never put a URL in "
+        f"{arg} yourself."
     )
     return (
-        "On every call to an mcp__ignition__* tool, you must explicitly pass "
-        "gateway_url and api_key for one of these named Ignition gateways -- "
-        "the tool server's own default target is a different, unrelated "
-        f"instance:\n{listed}\n"
-        f'Start on "{settings.ignition_default_target}". If the user names '
-        "another gateway for one request, use it for that request only. If "
-        'the user asks to switch (e.g. "use dev from now on"), use that '
-        "gateway for every later call in this conversation until they switch "
-        "again, and say which gateway you are now using. If the user names a "
-        "gateway that is not in this list, say so and list the available "
-        "names -- never guess or construct a gateway_url yourself."
+        f"Every mcp__{system}__* tool call targets {_A_THING[system]} named by an alias. "
+        f"{how} Aliases when this conversation started: {listed}. {always_try} "
+        "An unknown name is rejected with the current list, which you should "
+        f'then show them. Start on "{default}". If the user names another alias for '
+        'one request ("on ign-dev, what tags exist?"), use it for that '
+        "request only. If they ask to switch (\"use ign-dev from now on\"), "
+        "use that alias for every later call in this conversation until they "
+        f"switch again, and say which {thing} you are now using."
     )
 
 
-# Canary needs no target list here: canary-mcp-gateway holds each Historian's
-# connection (and its API token) itself, and every tool takes an optional
-# `connection` alias that falls back to the gateway's own default. Which
-# Historians exist, and which is the default, is gateway config.
-_CANARY_TARGETS = (
-    "Every mcp__canary__* tool takes an optional `connection` argument naming "
-    "which Canary Historian to use; leaving it out uses the default Historian. "
-    "If the user asks for a different Historian, call list_connections to see "
-    "which aliases exist. If the user names another Historian for one "
-    "request, pass it for that request only. If the user asks to switch, "
-    "pass that alias as `connection` on every later call in this conversation "
-    "until they switch again, and say which Historian you are now using. If "
-    "the name they give is not one of the aliases, say so and list them."
-)
+def _deny(reason: str) -> dict[str, Any]:
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        }
+    }
+
+
+async def _resolve_alias(input_data: Any, tool_use_id: str | None, context: Any) -> dict[str, Any]:
+    """PreToolUse hook: swaps the alias name the model passed for the alias's
+    real URL and key, just before the MCP call runs.
+
+    The model only ever writes the name, and the ToolUseBlock sent to the
+    browser (serialize_message) is the model's own input, so a key never
+    reaches either. Anything that isn't a known alias -- a raw URL included --
+    is refused, so a tool call can only reach a system someone deliberately
+    registered.
+    """
+    tool = input_data["tool_name"]
+    system = next((s for s in _ALIAS_ARG if tool.startswith(f"mcp__{s}__")), None)
+    # list_connections takes no connection -- it lists the gateway's own.
+    if system is None or tool == "mcp__canary__list_connections":
+        return {}
+    arg = _ALIAS_ARG[system]
+    args = dict(input_data["tool_input"])
+    name = args.get(arg) or await asyncio.to_thread(alias_store.default_alias, system)
+    if not name:
+        return _deny(f"No {_THING[system]} alias exists yet. Ask the user to add one with the Aliases button.")
+    alias = await asyncio.to_thread(alias_store.get_alias, name)
+    if alias is None or alias.system != system:
+        if alias is None and system == "canary" and "://" not in name and "{" not in name:
+            # Not one of ours: may be a connection in the gateway's own
+            # connections.yaml, which the gateway resolves (or rejects) itself.
+            # Only for names absent from the store -- an alias saved under the
+            # other system must be refused here, not passed on to fail as an
+            # "Unknown connection" the user can't make sense of.
+            return {}
+        known = [a["name"] for a in await asyncio.to_thread(alias_store.list_aliases) if a["system"] == system]
+        wrong_system = (
+            f"{name!r} is saved as {_A_THING[alias.system]} alias, not {_A_THING[system]} one -- "
+            "tell the user to delete it and re-add it with the right system in the Aliases form. "
+            if alias is not None
+            else f"{name!r} is not {_A_THING[system]} alias. "
+        )
+        return _deny(
+            wrong_system
+            + f"Known {system} aliases: {', '.join(known) or '(none yet -- add one with the Aliases button)'}."
+        )
+
+    if system == "ignition":
+        args["gateway_url"] = alias.url
+        args["api_key"] = alias.api_key
+    else:
+        # canary-mcp-gateway accepts a whole connection inline in `connection`
+        # (its connections.py, INLINE_PREFIX). verify_tls is off because
+        # Canary serves a certificate for its own machine name, not for the
+        # alias's hostname -- the same setting every connections.yaml entry
+        # in the infra repo uses.
+        #
+        # Keep api_token in the MIDDLE of this dict. When a tool's arguments
+        # fail validation, the gateway's error (which reaches the model)
+        # echoes them, truncated to their first and last ~25 characters. The
+        # URLs before the token and historians/verify_tls after it are what
+        # keep it out of that echo -- don't move it to either end.
+        spec = {
+            "read_base_url": f"{alias.url}:{settings.canary_read_port}/api/v2",
+            "write_base_url": f"{alias.url}:{settings.canary_write_port}/api/v1",
+            "api_token": alias.api_key,
+            "historians": [alias.historian] if alias.historian else [],
+            "verify_tls": False,
+        }
+        args["connection"] = "inline:" + json.dumps(spec)
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "allow",
+            "updatedInput": args,
+        }
+    }
 
 
 _IGNITION_TAG_EDITING = (
@@ -161,8 +263,8 @@ def _system_prompt(scope: str) -> str:
     # coding agent, and the smaller prompt is less per-turn token overhead
     # (see Phase7's cost findings).
     if scope == "canary":
-        return f"{_CANARY_ROLE}\n\n{_CANARY_TARGETS}"
-    return f"{_IGNITION_ROLE}\n\n{_ignition_targets()}\n\n{_IGNITION_TAG_EDITING}"
+        return f"{_CANARY_ROLE}\n\n{_alias_instructions('canary')}"
+    return f"{_IGNITION_ROLE}\n\n{_alias_instructions('ignition')}\n\n{_IGNITION_TAG_EDITING}"
 
 
 def build_options(scope: str = DEFAULT_SCOPE, resume: str | None = None) -> ClaudeAgentOptions:
@@ -195,6 +297,10 @@ def build_options(scope: str = DEFAULT_SCOPE, resume: str | None = None) -> Clau
         # actions is an open question from mcp_frontend_v3.pdf, not yet
         # resolved.
         allowed_tools=[f"mcp__{name}__*" for name in servers],
+        # Resolves alias names to real URLs/keys on every MCP call -- see
+        # _resolve_alias. Matches both systems; the hook itself ignores tools
+        # it has nothing to resolve for.
+        hooks={"PreToolUse": [HookMatcher(matcher="mcp__.*", hooks=[_resolve_alias])]},
         model=settings.claude_model,
         # Secondary safety net beneath the cumulative daily cap in app.py --
         # this one's per-session (per WebSocket connection) and enforced by

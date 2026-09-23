@@ -1,0 +1,95 @@
+<button type="button" class="toggle" (click)="toggle()" [attr.aria-expanded]="open()" aria-controls="alias-panel">
+  Aliases
+</button>
+
+@if (open()) {
+  <section id="alias-panel" class="panel" aria-label="Aliases">
+    @if (error(); as message) {
+      <p class="panel-error" role="alert">{{ message }}</p>
+    }
+    @if (notice(); as message) {
+      <p class="panel-notice" role="status">{{ message }}</p>
+    }
+
+    @if (store.aliases().length === 0) {
+      <p class="empty">No aliases yet. Add one below, then name it in a message: "on ign-stage, what tags exist?"</p>
+    } @else {
+      <ul class="alias-list">
+        @for (alias of store.aliases(); track alias.name) {
+          <li class="alias">
+            <span class="system" [class]="'system-' + alias.system">{{ alias.system }}</span>
+            <span class="name">{{ alias.name }}</span>
+            <span class="url" [title]="alias.url">{{ alias.url }}</span>
+            @if (alias.is_default) {
+              <span class="default">default</span>
+            } @else {
+              <button type="button" class="link-button" (click)="makeDefault(alias.name)">Make default</button>
+            }
+            <button type="button" class="link-button danger" (click)="remove(alias.name)" [attr.aria-label]="'Delete ' + alias.name">
+              Delete
+            </button>
+          </li>
+        }
+      </ul>
+    }
+
+    <form class="add-form" [formRoot]="aliasForm" (submit)="onSubmit()">
+      <div class="row">
+        <div class="field">
+          <label for="alias-name">Name</label>
+          <input id="alias-name" placeholder="ign-stage" autocomplete="off" [formField]="aliasForm.name" />
+          @if (aliasForm.name().touched() && aliasForm.name().errors().length > 0) {
+            <p class="field-error" role="alert">{{ aliasForm.name().errors()[0].message }}</p>
+          }
+        </div>
+        <div class="field">
+          <label for="alias-system">System</label>
+          <select id="alias-system" [formField]="aliasForm.system">
+            <option value="ignition">Ignition</option>
+            <option value="canary">Canary</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="alias-url">URL</label>
+        <input
+          id="alias-url"
+          autocomplete="off"
+          [placeholder]="isCanary() ? 'https://canary-stage.stage.katlego.work' : 'https://ignition.stage.katlego.work'"
+          [formField]="aliasForm.url"
+        />
+        @if (isCanary()) {
+          <p class="hint">The Historian's base URL only -- the API ports are added automatically.</p>
+        }
+        @if (aliasForm.url().touched() && aliasForm.url().errors().length > 0) {
+          <p class="field-error" role="alert">{{ aliasForm.url().errors()[0].message }}</p>
+        }
+      </div>
+
+      <div class="field">
+        <password-field
+          fieldId="alias-key"
+          label="API key"
+          placeholder="API key"
+          autocomplete="new-password"
+          [formField]="aliasForm.api_key"
+        />
+        @if (aliasForm.api_key().touched() && aliasForm.api_key().errors().length > 0) {
+          <p class="field-error" role="alert">{{ aliasForm.api_key().errors()[0].message }}</p>
+        }
+      </div>
+
+      @if (isCanary()) {
+        <div class="field">
+          <label for="alias-historian">Historian (for writes, optional)</label>
+          <input id="alias-historian" autocomplete="off" [formField]="aliasForm.historian" />
+        </div>
+      }
+
+      <button type="submit" class="submit-button" [disabled]="aliasForm().submitting()">
+        {{ aliasForm().submitting() ? 'Adding…' : 'Add alias' }}
+      </button>
+    </form>
+  </section>
+}

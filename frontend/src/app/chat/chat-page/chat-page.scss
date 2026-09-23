@@ -116,6 +116,8 @@
 .scope-bar {
   display: flex;
   justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0.75rem 2rem 0;
 
   @media (max-width: 30rem) {
