@@ -92,8 +92,8 @@ async def chat(websocket: WebSocket) -> None:
         return
 
     # Initial scope, from the query string at connect time. Fail safe to the
-    # narrowest scope on anything missing or unrecognized; never fail open to
-    # "all". Can change later, mid-connection, via a "change_scope" message
+    # default scope on anything missing or unrecognized, never to a scope the
+    # user didn't pick. Can change later, mid-connection, via a "change_scope" message
     # below -- the WebSocket itself stays open across that, only the
     # underlying ChatSession's connected servers change (see switch_scope).
     requested_scope = websocket.query_params.get("scope")
