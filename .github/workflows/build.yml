@@ -1,8 +1,12 @@
 name: Build
 
-# Build only. Deploy is a separate workflow (deploy.yml) triggered by tag
-# pushes, so every push to main produces an immutable, registry-pushed
-# image without ever touching what's actually running on clubuntu.
+# Build and push only. Deploying is the infra repo's job (kat-e8/infra,
+# playbooks/deploy-services.yml): it pins rosetta_chat_bridge_tag /
+# rosetta_frontend_tag to one of the short-SHA tags pushed here, so a push to
+# main never changes what's running anywhere by itself.
+#
+# Run it by hand (Actions > Build > Run workflow) to build a branch for
+# staging before it's merged.
 on:
   push:
     branches: [main]
@@ -13,9 +17,11 @@ permissions:
 
 jobs:
   build:
-    # Labels the iggyChat self-hosted runner on clubuntu is registered
-    # with (see Deployment/Phase3_Self_Hosted_Runner.pdf).
-    runs-on: [self-hosted, iggychat]
+    # Self-hosted runner on katmint, labelled "katmint". registry.katlego.work
+    # is only reachable on the tailnet, so GitHub-hosted runners can't push to
+    # it. The runner's user holds a standing `docker login` for the registry,
+    # so no registry credentials live in GitHub.
+    runs-on: [self-hosted, katmint]
     strategy:
       matrix:
         include:
@@ -25,19 +31,30 @@ jobs:
           - service: frontend
             context: ./frontend
             dockerfile: frontend/Dockerfile
+    env:
+      IMAGE: registry.katlego.work/rosetta-${{ matrix.service }}
     steps:
       - uses: actions/checkout@v4
+
+      # Short SHA, the same form the infra repo already pins (e.g. eed114a).
+      - name: Resolve tag
+        id: tag
+        run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - name: Build ${{ matrix.service }}
         run: |
           docker build \
             -f ${{ matrix.dockerfile }} \
-            -t clubuntu.dala-cirius.ts.net:5000/rosetta-${{ matrix.service }}:${{ github.sha }} \
-            -t clubuntu.dala-cirius.ts.net:5000/rosetta-${{ matrix.service }}:main \
+            -t "$IMAGE:${{ steps.tag.outputs.short }}" \
             ${{ matrix.context }}
 
       - name: Push ${{ matrix.service }}
-        # Registry is unauthenticated (tailnet-only) -- no docker login step.
+        run: docker push "$IMAGE:${{ steps.tag.outputs.short }}"
+
+      # A moving "main" tag only for builds of main -- a branch built by hand
+      # gets its SHA tag and nothing else, so it can't be mistaken for main.
+      - name: Tag and push main
+        if: github.ref == 'refs/heads/main'
         run: |
-          docker push clubuntu.dala-cirius.ts.net:5000/rosetta-${{ matrix.service }}:${{ github.sha }}
-          docker push clubuntu.dala-cirius.ts.net:5000/rosetta-${{ matrix.service }}:main
+          docker tag "$IMAGE:${{ steps.tag.outputs.short }}" "$IMAGE:main"
+          docker push "$IMAGE:main"
