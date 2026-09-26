@@ -14,7 +14,7 @@ function mockResponse(status: number, body: unknown) {
 const IGN_STAGE: Alias = {
   name: 'ign-stage',
   system: 'ignition',
-  url: 'https://ignition.stage.katlego.work',
+  url: 'https://ignition.example.com',
   historian: null,
   is_default: true,
   created_by: 'me@example.com',
@@ -52,7 +52,7 @@ describe('Aliases', () => {
     await service.create({
       name: 'ign-stage',
       system: 'ignition',
-      url: 'https://ignition.stage.katlego.work',
+      url: 'https://ignition.example.com',
       api_key: 'key',
       historian: 'ignored',
     });
@@ -70,7 +70,7 @@ describe('Aliases', () => {
     await service.create({
       name: 'can-stage',
       system: 'canary',
-      url: 'https://canary-stage.stage.katlego.work',
+      url: 'https://historian.example.com',
       api_key: 'key',
       historian: '  histS ',
     });

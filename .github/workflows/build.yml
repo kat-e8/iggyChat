@@ -16,11 +16,32 @@ permissions:
   contents: read
 
 jobs:
+  # No real domain is written in this repo: the registry's name comes from
+  # the repository variable REGISTRY_HOST (Settings > Secrets and variables >
+  # Actions > Variables), which follows the infra repo's registry_host. Fail
+  # if its domain turns up in the code, so a domain change never needs a
+  # code change here.
+  no-literal-domain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No literal domain
+        env:
+          REGISTRY_HOST: ${{ vars.REGISTRY_HOST }}
+        run: |
+          test -n "$REGISTRY_HOST" || { echo "Set the repository variable REGISTRY_HOST"; exit 1; }
+          domain="${REGISTRY_HOST#registry.}"
+          if git grep -nIiF "$domain" -- .; then
+            echo "Literal '$domain' above: use \${REGISTRY} / example.com instead"; exit 1
+          fi
+
   build:
-    # Self-hosted runner on katmint, labelled "katmint". registry.katlego.work
-    # is only reachable on the tailnet, so GitHub-hosted runners can't push to
-    # it. The runner's user holds a standing `docker login` for the registry,
-    # so no registry credentials live in GitHub.
+    needs: no-literal-domain
+    # Self-hosted runner on katmint, labelled "katmint". The registry is only
+    # reachable on the tailnet, so GitHub-hosted runners can't push to it.
+    # The runner's user holds a standing `docker login` for the registry
+    # (repeat it when REGISTRY_HOST changes), so no registry credentials live
+    # in GitHub.
     runs-on: [self-hosted, katmint]
     strategy:
       matrix:
@@ -32,7 +53,7 @@ jobs:
             context: ./frontend
             dockerfile: frontend/Dockerfile
     env:
-      IMAGE: registry.katlego.work/rosetta-${{ matrix.service }}
+      IMAGE: ${{ vars.REGISTRY_HOST }}/rosetta-${{ matrix.service }}
     steps:
       - uses: actions/checkout@v4
 

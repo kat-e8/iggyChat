@@ -21,7 +21,7 @@ services:
       # app in before running `docker compose up`.
       context: ./chat-bridge
       dockerfile: Dockerfile
-    image: registry.katlego.work/rosetta-chat-bridge:${TAG:-dev}
+    image: ${REGISTRY:-local}/rosetta-chat-bridge:${TAG:-dev}
     # The only service this compose file publishes to the host -- the single
     # public entry point the browser talks to.
     ports:
@@ -53,7 +53,7 @@ services:
       # (see frontend/nginx.conf).
       context: ./frontend
       dockerfile: Dockerfile
-    image: registry.katlego.work/rosetta-frontend:${TAG:-dev}
+    image: ${REGISTRY:-local}/rosetta-frontend:${TAG:-dev}
     # Second host-published service, alongside chat-bridge -- the browser
     # talks to this nginx for the app shell and static assets; nginx forwards
     # /api/* to chat-bridge:8001 via compose service-name DNS.

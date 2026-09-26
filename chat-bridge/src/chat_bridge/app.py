@@ -101,7 +101,7 @@ def _check_canary_url(body: AliasCreate) -> None:
     if body.system == "canary" and (parts.port is not None or parts.path):
         raise HTTPException(
             status_code=422,
-            detail="A Canary alias URL is the Historian's base URL only, e.g. https://canary-stage.stage.katlego.work "
+            detail="A Canary alias URL is the Historian's base URL only, e.g. https://historian.example.com "
             "(no port or path -- the API ports are added automatically).",
         )
 
